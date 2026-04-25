@@ -1,111 +1,9 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { URL } = require('url');
-const puppeteer = require('puppeteer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// ============================================
-// Screenshot Browser Instance
-// ============================================
-
-let browser = null;
-
-/**
- * Get or create shared browser instance for screenshots
- */
-async function getBrowser() {
-  if (!browser) {
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--window-size=1920,1080',
-      ],
-    });
-    console.log('[Screenshot] Browser instance launched');
-  }
-  return browser;
-}
-
-/**
- * Take a screenshot of a webpage
- * @param {string} targetUrl - URL to screenshot
- * @param {object} options - Screenshot options
- * @returns {Buffer} - PNG image buffer
- */
-async function takeScreenshot(targetUrl, options = {}) {
-  const {
-    width = 1920,
-    height = 1080,
-    fullPage = false,
-    waitFor = 3000,
-    selector = null,
-    timeout = 30000,
-  } = options;
-
-  const browserInstance = await getBrowser();
-  const page = await browserInstance.newPage();
-
-  try {
-    // Set viewport
-    await page.setViewport({
-      width: parseInt(width),
-      height: parseInt(height),
-      deviceScaleFactor: 1,
-    });
-
-    // Block unnecessary resources for faster loading
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const resourceType = req.resourceType();
-      if (resourceType === 'font' || resourceType === 'media' || resourceType === 'stylesheet') {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
-
-    // Navigate to page - use 'load' instead of 'networkidle2' for faster completion
-    await page.goto(targetUrl, {
-      waitUntil: 'load',
-      timeout: parseInt(timeout),
-    });
-
-    // Wait for specified time
-    await new Promise(resolve => setTimeout(resolve, parseInt(waitFor)));
-
-    // Wait for selector if specified
-    if (selector) {
-      try {
-        await page.waitForSelector(selector, { timeout: 5000 });
-      } catch (e) {
-        console.log(`[Screenshot] Selector "${selector}" not found, continuing...`);
-      }
-    }
-
-    // Take screenshot
-    const screenshotOptions = {
-      type: 'png',
-      encoding: 'binary',
-    };
-
-    if (fullPage) {
-      screenshotOptions.fullPage = true;
-    }
-
-    const screenshot = await page.screenshot(screenshotOptions);
-
-    return Buffer.from(screenshot);
-  } finally {
-    await page.close();
-  }
-}
 
 // ============================================
 // Configuration
@@ -979,74 +877,81 @@ app.post('/fetch', async (req, res) => {
   await performFetch(req, res, validation.href, { method, headers, body });
 });
 
-// GET /screenshot endpoint
-app.get('/screenshot', async (req, res) => {
-  const { 
-    url, 
-    width = 1920, 
-    height = 1080, 
-    fullPage = 'false',
-    waitFor = 3000,
-    selector = null,
-  } = req.query;
+// GET /yt-audio endpoint - Download YouTube video as audio (.webm)
+app.get('/yt-audio', async (req, res) => {
+  const { url } = req.query;
 
-  // Validate URL
-  const validation = validateUrl(url);
-  if (validation.valid === false) {
-    return res.status(403).json({
-      error: validation.error,
-      details: validation.blockedDomain ? 'This domain is blocked by the proxy' : 'URL validation failed'
+  if (!url) {
+    return res.status(400).json({
+      error: 'Missing URL parameter',
+      details: 'Please provide a YouTube URL: /yt-audio?url=<youtube_url>'
     });
   }
 
-  // Parse fullPage parameter
-  const fullPageBool = fullPage === 'true' || fullPage === '1';
-  
-  // Allow custom timeout (max 120 seconds)
-  const timeoutMs = Math.min(parseInt(req.query.timeout) || 30000, 120000);
+  // Validate it's a YouTube URL
+  const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
+  if (!youtubeRegex.test(url)) {
+    return res.status(400).json({
+      error: 'Invalid YouTube URL',
+      details: 'Please provide a valid YouTube video URL'
+    });
+  }
 
   try {
-    console.log(`[Screenshot] Capturing: ${url} (${width}x${height}, fullPage=${fullPageBool}, timeout=${timeoutMs}ms)`);
+    console.log(`[YtAudio] Processing: ${url}`);
+
+    // Use ytdl-core to get audio stream
+    const ytdl = require('ytdl-core');
     
-    const screenshotBuffer = await takeScreenshot(validation.href, {
-      width,
-      height,
-      fullPage: fullPageBool,
-      waitFor,
-      selector,
-      timeout: timeoutMs,
+    // Get video info
+    const info = await ytdl.getInfo(url);
+    const title = info.videoDetails.title.replace(/[^\w\s-]/g, '');
+    
+    // Get audio format (prefer webm for audio)
+    const audioFormat = ytdl.chooseFormat(info.formats, {
+      filter: 'audioonly',
+      quality: 'highestaudio'
     });
 
-    // Set headers for image response
-    res.set('Content-Type', 'image/png');
-    res.set('Content-Length', screenshotBuffer.length);
-    res.set('Cache-Control', 'public, max-age=300'); // Cache for 5 minutes
-    
-    res.send(screenshotBuffer);
-    
-    console.log(`[Screenshot] Completed: ${screenshotBuffer.length} bytes`);
-  } catch (error) {
-    console.error('[Screenshot] Error:', error.message);
-    
-    // Check if it's a navigation error
-    if (error.message.includes('net::') || error.message.includes('Navigation failed')) {
-      return res.status(502).json({
-        error: 'Failed to navigate to target URL',
-        details: error.message
+    if (!audioFormat) {
+      return res.status(500).json({
+        error: 'No audio format available',
+        details: 'Could not find a suitable audio format for this video'
       });
     }
+
+    console.log(`[YtAudio] Streaming: ${title} (${audioFormat.container})`);
+
+    // Set response headers
+    res.set('Content-Type', audioFormat.mimeRef || 'audio/webm');
+    res.set('Content-Disposition', `attachment; filename="${title}.${audioFormat.container}"`);
+    res.set('Content-Length', audioFormat.contentLength || '0');
+
+    // Stream the audio
+    const stream = ytdl.downloadFromInfo(info, { format: audioFormat });
     
-    // Check for timeout specifically
-    if (error.message.includes('timeout') || error.message.includes('Timeout')) {
-      return res.status(504).json({
-        error: 'Navigation timeout - page took too long to load',
-        details: error.message,
-        suggestion: 'Try increasing timeout with ?timeout=60000 (up to 120000ms), or the page may be too slow/unresponsive'
+    stream.on('error', (error) => {
+      console.error('[YtAudio] Stream error:', error.message);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Stream failed', details: error.message });
+      }
+    });
+
+    stream.pipe(res);
+
+    console.log(`[YtAudio] Completed: ${title}`);
+  } catch (error) {
+    console.error('[YtAudio] Error:', error.message);
+    
+    if (error.message.includes('Video unavailable')) {
+      return res.status(404).json({
+        error: 'Video unavailable',
+        details: 'This YouTube video is unavailable or has been removed'
       });
     }
     
     return res.status(500).json({
-      error: 'Screenshot failed',
+      error: 'Failed to download YouTube audio',
       details: error.message
     });
   }

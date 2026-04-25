@@ -24,37 +24,26 @@ Click the buttons below to test different features:
 - **/fetch** - Fetch any URL with query parameter
 - **Example** - https://opengate-8dyx.onrender.com/fetch?url=https://example.com&rewrite=true
 ----------------------------------------------------------------------------------------------------
-## Screenshot - WIP
+## YouTube Audio
 
-**/screenshot** Capture a screenshot of a webpage using Puppeteer.
+**/yt-audio** Download YouTube videos as audio files (.webm format).
 
 **Query Parameters:**
-- `?url=` (required) - The target URL to screenshot
-- `&width=` (optional) - Viewport width in pixels (default: `1920`)
-- `&height=` (optional) - Viewport height in pixels (default: `1080`)
-- `&fullPage` (optional) - Set to `true` for full page screenshot (default: `false`)
-- `&waitFor=` (optional) - Milliseconds to wait after load (default: `3000`)
-- `&selector=` (optional) - Wait for specific CSS selector before screenshot
+- `?url=` (required) - The YouTube video URL
 
 **Example:**
-```example
-curl "http://opengate-8dyx.onrender.com/screenshot?url=https://example.com" \
-  -o screenshot.png
-```
-
-**Full page screenshot:**
 ```bash
-curl "http://opengate-8dyx.onrender.com/screenshot?url=https://example.com&fullPage=true" \
-  -o fullpage.png
+curl "https://opengate-8dyx.onrender.com/yt-audio?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ" \
+  -o audio.webm
 ```
 
-**Custom viewport:**
-```bash
-curl "http://opengate-8dyx.onrender.com/screenshot?url=https://example.com&width=1280&height=720" \
-  -o mobile.png
-```
+**Supported URLs:**
+- `youtube.com/watch?v=...`
+- `youtu.be/...`
+- `youtube.com/embed/...`
+- `youtube.com/shorts/...`
 
-**Returns:** PNG image with `Content-Type: image/png`
+**Returns:** Audio file with `Content-Type: audio/webm` (or other available audio format)
 
 ### Health
 
@@ -136,7 +125,7 @@ Common status codes:
 ### Next Features: 
 
 - Better CSS handling
-- /yt-audio?url= (Convert a youtube video into .webm for playback
+- ✓ /yt-audio?url= (Convert a youtube video into .webm for playback
 - /convert?from=mp4&to=mp3 (Convert file types)
 - /Ai?prompt=Hey (sends a request to an ai model and sends response
 
