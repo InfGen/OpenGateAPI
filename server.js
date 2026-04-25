@@ -1146,7 +1146,7 @@ app.get('/delay', async (req, res) => {
   });
 });
 
-// GET /ai-text - Send AI request via OpenRouter
+// GET /ai-text - Send AI request via Hugging Face Inference API
 app.get('/ai-text', async (req, res) => {
   const { prompt } = req.query;
 
@@ -1154,47 +1154,39 @@ app.get('/ai-text', async (req, res) => {
     return res.status(400).json({ error: 'Missing prompt parameter' });
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'OpenRouter API key not configured' });
-  }
-
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://opengate-8dyx.onrender.com',
-        'X-Title': 'OpenGate API'
-      },
-      body: JSON.stringify({
-        model: 'openrouter/free',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
+    const response = await fetch(
+      'https://api-inference.huggingface.co/models/gpt2',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            max_new_tokens: 150,
+            temperature: 0.7
           }
-        ]
-      })
-    });
+        })
+      }
+    );
 
     const data = await response.json();
 
     if (!response.ok) {
       return res.status(response.status).json({
-        error: 'OpenRouter API error',
-        details: data.error?.message || data
+        error: 'Hugging Face API error',
+        details: data.error || data
       });
     }
 
-    const aiResponse = data.choices?.[0]?.message?.content || '';
+    const generatedText = Array.isArray(data) ? data[0]?.generated_text : data.generated_text || '';
 
     res.json({
       prompt: prompt,
-      response: aiResponse,
-      model: 'openrouter/free',
-      usage: data.usage
+      response: generatedText,
+      model: 'gpt2'
     });
   } catch (error) {
     res.status(500).json({ error: 'AI request failed', details: error.message });

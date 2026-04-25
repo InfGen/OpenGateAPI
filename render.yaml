@@ -7,6 +7,4 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: OPENROUTER_API_KEY
-        value: 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
     plan: starter

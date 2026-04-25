@@ -191,7 +191,7 @@ curl "https://opengate-8dyx.onrender.com/count-text?text=Hello%20world.%20How%20
 ---
 
 ### /ai-text
-Send an AI request using OpenRouter (free model).
+Send an AI request using Hugging Face Inference API (GPT-2 model).
 
 ```bash
 curl "https://opengate-8dyx.onrender.com/ai-text?prompt=Hello%20world"
@@ -201,13 +201,8 @@ curl "https://opengate-8dyx.onrender.com/ai-text?prompt=Hello%20world"
 ```json
 {
   "prompt": "Hello world",
-  "response": "Hello! How can I help you today?",
-  "model": "openrouter/free",
-  "usage": {
-    "prompt_tokens": 10,
-    "completion_tokens": 15,
-    "total_tokens": 25
-  }
+  "response": "Hello world! I'm a helpful AI assistant.",
+  "model": "gpt2"
 }
 ```
 
