@@ -190,20 +190,101 @@ curl "https://opengate-8dyx.onrender.com/count-text?text=Hello%20world.%20How%20
 
 ---
 
-### /ai-text
-Send an AI request using Hugging Face Inference API (GPT-2 model).
+### /uuid
+Generate UUIDs.
 
 ```bash
-curl "https://opengate-8dyx.onrender.com/ai-text?prompt=Hello%20world"
+curl "https://opengate-8dyx.onrender.com/uuid"
 ```
 
-**Response:**
-```json
-{
-  "prompt": "Hello world",
-  "response": "Hello world! I'm a helpful AI assistant.",
-  "model": "gpt2"
-}
+---
+
+### /base64
+Encode or decode base64.
+
+```bash
+# Encode
+curl "https://opengate-8dyx.onrender.com/base64?text=Hello"
+
+# Decode
+curl "https://opengate-8dyx.onrender.com/base64?text=SGVsbG8=&decode=true"
+```
+
+---
+
+### /hash
+Generate hash of text.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/hash?text=Hello&type=sha256"
+```
+
+---
+
+### /json-format
+Format or validate JSON.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/json-format?text=%7B%22a%22:1%7D"
+```
+
+---
+
+### /random
+Generate random values.
+
+```bash
+# Random number
+curl "https://opengate-8dyx.onrender.com/random?type=number&min=1&max=100"
+
+# Random password
+curl "https://opengate-8dyx.onrender.com/random?type=password&length=16"
+
+# Random choice
+curl "https://opengate-8dyx.onrender.com/random?type=choice&options=cat,dog,bird"
+```
+
+---
+
+### /jwt-decode
+Decode JWT tokens.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/jwt-decode?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123"
+```
+
+---
+
+### /color-convert
+Convert between color formats.
+
+```bash
+# From hex
+curl "https://opengate-8dyx.onrender.com/color-convert?hex=FF0000"
+
+# From RGB
+curl "https://opengate-8dyx.onrender.com/color-convert?rgb=255,0,0"
+
+# From HSL
+curl "https://opengate-8dyx.onrender.com/color-convert?hsl=0,100,50"
+```
+
+---
+
+### /joke
+Get a random joke.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/joke"
+```
+
+---
+
+### /word
+Dictionary lookup.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/word?text=hello"
 ```
 
 ---

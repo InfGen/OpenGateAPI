@@ -1146,62 +1146,268 @@ app.get('/delay', async (req, res) => {
   });
 });
 
-// GET /ai-text - Send AI request via Hugging Face Inference API
-app.get('/ai-text', async (req, res) => {
-  const { prompt } = req.query;
-
-  if (!prompt) {
-    return res.status(400).json({ error: 'Missing prompt parameter' });
+// GET /uuid - Generate UUIDs
+app.get('/uuid', (req, res) => {
+  const count = Math.min(parseInt(req.query.count) || 1, 100);
+  const uuids = [];
+  for (let i = 0; i < count; i++) {
+    uuids.push(crypto.randomUUID());
   }
+  res.json({ count: uuids.length, uuids: count === 1 ? uuids[0] : uuids });
+});
 
+// GET /base64 - Encode or decode base64
+app.get('/base64', (req, res) => {
+  const { text, decode } = req.query;
+  if (!text) {
+    return res.status(400).json({ error: 'Missing text parameter' });
+  }
+  
   try {
-    // Use BigScience BLOOMZ model - works with inference API
-    const response = await fetch(
-      'https://api-inference.huggingface.co/models/bigscience/bloomz',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          inputs: prompt,
-          parameters: {
-            max_new_tokens: 80,
-            temperature: 0.8,
-            do_sample: true
-          }
-        })
-      }
-    );
-
-    const contentType = response.headers.get('content-type');
-    const text = await response.text();
-
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: 'Hugging Face API error',
-        details: text.substring(0, 200)
-      });
+    if (decode === 'true' || decode === '1') {
+      const decoded = Buffer.from(text, 'base64').toString('utf-8');
+      res.json({ original: text, decoded: decoded });
+    } else {
+      const encoded = Buffer.from(text, 'utf-8').toString('base64');
+      res.json({ original: text, encoded: encoded });
     }
+  } catch (error) {
+    res.status(400).json({ error: 'Invalid input', details: error.message });
+  }
+});
 
-    // Parse JSON response
-    if (contentType && contentType.includes('application/json')) {
-      const data = JSON.parse(text);
-      const generatedText = Array.isArray(data) ? data[0]?.generated_text : data.generated_text || text;
-      return res.json({
-        prompt: prompt,
-        response: generatedText.trim(),
-        model: 'bigscience/bloomz'
-      });
+// GET /hash - Generate hash of text
+app.get('/hash', (req, res) => {
+  const { text, type = 'sha256' } = req.query;
+  if (!text) {
+    return res.status(400).json({ error: 'Missing text parameter' });
+  }
+  
+  const types = ['md5', 'sha1', 'sha256', 'sha512'];
+  const hashType = types.includes(type) ? type : 'sha256';
+  
+  crypto.subtle.digest(hashType, new TextEncoder().encode(text)).then(hash => {
+    const hashHex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    res.json({ text: text, type: hashType, hash: hashHex });
+  }).catch(() => {
+    res.status(500).json({ error: 'Hash generation failed' });
+  });
+});
+
+// GET /json-format - Format or validate JSON
+app.get('/json-format', (req, res) => {
+  const { text, minify } = req.query;
+  if (!text) {
+    return res.status(400).json({ error: 'Missing text parameter' });
+  }
+  
+  try {
+    const parsed = JSON.parse(text);
+    const formatted = minify === 'true' ? JSON.stringify(parsed) : JSON.stringify(parsed, null, 2);
+    res.json({ valid: true, formatted: formatted });
+  } catch (error) {
+    res.json({ valid: false, error: error.message });
+  }
+});
+
+// GET /random - Generate random values
+app.get('/random', (req, res) => {
+  const type = req.query.type || 'number';
+  const min = parseInt(req.query.min) || 0;
+  const max = parseInt(req.query.max) || 100;
+  const count = Math.min(parseInt(req.query.count) || 1, 100);
+  
+  if (type === 'number') {
+    const numbers = [];
+    for (let i = 0; i < count; i++) {
+      numbers.push(Math.floor(Math.random() * (max - min + 1)) + min);
     }
+    res.json({ type: 'number', count: numbers.length, values: count === 1 ? numbers[0] : numbers });
+  } else if (type === 'password') {
+    const length = Math.min(parseInt(req.query.length) || 16, 128);
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += chars[Math.floor(Math.random() * chars.length)];
+    }
+    res.json({ type: 'password', password: password });
+  } else if (type === 'choice') {
+    const options = (req.query.options || '').split(',').filter(Boolean);
+    if (options.length === 0) {
+      return res.status(400).json({ error: 'Missing options parameter (comma-separated)' });
+    }
+    res.json({ choice: options[Math.floor(Math.random() * options.length)] });
+  } else {
+    res.status(400).json({ error: 'Invalid type. Use: number, password, or choice' });
+  }
+});
 
+// GET /jwt-decode - Decode JWT token
+app.get('/jwt-decode', (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.status(400).json({ error: 'Missing token parameter' });
+  }
+  
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return res.status(400).json({ error: 'Invalid JWT format' });
+    }
+    
+    const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    
     res.json({
-      prompt: prompt,
-      response: text.substring(0, 500).trim(),
-      model: 'bigscience/bloomz'
+      header: header,
+      payload: payload,
+      signature: parts[2]
     });
   } catch (error) {
-    res.status(500).json({ error: 'AI request failed', details: error.message });
+    res.status(400).json({ error: 'Failed to decode JWT', details: error.message });
+  }
+});
+
+// GET /color-convert - Convert between color formats
+app.get('/color-convert', (req, res) => {
+  const { hex, rgb, hsl } = req.query;
+  
+  try {
+    let r, g, b;
+    
+    if (hex) {
+      const clean = hex.replace('#', '');
+      if (!/^[0-9A-Fa-f]{6}$/.test(clean)) {
+        return res.status(400).json({ error: 'Invalid hex format' });
+      }
+      r = parseInt(clean.substring(0, 2), 16);
+      g = parseInt(clean.substring(2, 4), 16);
+      b = parseInt(clean.substring(4, 6), 16);
+    } else if (rgb) {
+      const match = rgb.match(/(\d+),\s*(\d+),\s*(\d+)/);
+      if (!match) {
+        return res.status(400).json({ error: 'Invalid RGB format (use: 255,255,255)' });
+      }
+      r = parseInt(match[1]);
+      g = parseInt(match[2]);
+      b = parseInt(match[3]);
+    } else if (hsl) {
+      const match = hsl.match(/(\d+),\s*(\d+)%?,\s*(\d+)%?/);
+      if (!match) {
+        return res.status(400).json({ error: 'Invalid HSL format (use: 0,100,50)' });
+      }
+      const h = parseInt(match[1]) / 360;
+      const s = parseInt(match[2]) / 100;
+      const l = parseInt(match[3]) / 100;
+      const [r1, g1, b1] = hslToRgb(h, s, l);
+      r = r1; g = g1; b = b1;
+    } else {
+      return res.status(400).json({ error: 'Provide hex, rgb, or hsl parameter' });
+    }
+    
+    const hexVal = '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+    const [h, s, l] = rgbToHsl(r, g, b);
+    
+    res.json({
+      hex: hexVal,
+      rgb: `rgb(${r}, ${g}, ${b})`,
+      hsl: `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`,
+      rgba: `rgba(${r}, ${g}, ${b}, 1)`
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Helper: RGB to HSL
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) {
+    h = s = 0;
+  } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return [h, s, l];
+}
+
+// Helper: HSL to RGB
+function hslToRgb(h, s, l) {
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+// GET /joke - Random joke
+app.get('/joke', async (req, res) => {
+  try {
+    const response = await fetch('https://v2.jokeapi.dev/joke/Any?safe-mode');
+    const data = await response.json();
+    
+    if (data.type === 'single') {
+      res.json({ joke: data.joke, type: 'single' });
+    } else {
+      res.json({ setup: data.setup, delivery: data.delivery, type: 'twopart' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch joke' });
+  }
+});
+
+// GET /word - Dictionary lookup
+app.get('/word', async (req, res) => {
+  const { text } = req.query;
+  if (!text) {
+    return res.status(400).json({ error: 'Missing text parameter' });
+  }
+  
+  try {
+    const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(text)}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return res.status(404).json({ error: 'Word not found' });
+    }
+    
+    const word = data[0];
+    const meanings = word.meanings.map(m => ({
+      partOfSpeech: m.partOfSpeech,
+      definitions: m.definitions.slice(0, 3).map(d => ({
+        definition: d.definition,
+        example: d.example
+      }))
+    }));
+    
+    res.json({
+      word: word.word,
+      phonetic: word.phonetic || '',
+      meanings: meanings
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Dictionary lookup failed' });
   }
 });
 
