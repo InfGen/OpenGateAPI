@@ -1155,8 +1155,9 @@ app.get('/ai-text', async (req, res) => {
   }
 
   try {
+    // Use a more reliable free model endpoint
     const response = await fetch(
-      'https://api-inference.huggingface.co/models/gpt2',
+      'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large',
       {
         method: 'POST',
         headers: {
@@ -1165,28 +1166,39 @@ app.get('/ai-text', async (req, res) => {
         body: JSON.stringify({
           inputs: prompt,
           parameters: {
-            max_new_tokens: 150,
-            temperature: 0.7
+            max_new_tokens: 100,
+            temperature: 0.8
           }
         })
       }
     );
 
-    const data = await response.json();
+    const contentType = response.headers.get('content-type');
+    const text = await response.text();
 
     if (!response.ok) {
       return res.status(response.status).json({
         error: 'Hugging Face API error',
-        details: data.error || data
+        details: text.substring(0, 200)
       });
     }
 
-    const generatedText = Array.isArray(data) ? data[0]?.generated_text : data.generated_text || '';
+    // Handle JSON responses
+    if (contentType && contentType.includes('application/json')) {
+      const data = JSON.parse(text);
+      const generatedText = Array.isArray(data) ? data[0]?.generated_text : data.generated_text || '';
+      return res.json({
+        prompt: prompt,
+        response: generatedText,
+        model: 'microsoft/DialoGPT-large'
+      });
+    }
 
+    // Return raw text if not JSON
     res.json({
       prompt: prompt,
-      response: generatedText,
-      model: 'gpt2'
+      response: text.substring(0, 500),
+      model: 'microsoft/DialoGPT-large'
     });
   } catch (error) {
     res.status(500).json({ error: 'AI request failed', details: error.message });
