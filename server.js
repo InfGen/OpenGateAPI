@@ -882,6 +882,7 @@ function rewriteHtml(html, baseUrl) {
  */
 async function performFetch(req, res, targetUrl, options = {}) {
   const { method = 'GET', headers = {}, body = null } = options;
+  const shouldStream = req.query.stream === 'true';
 
   // Create safe request configuration
   const fetchOptions = {
@@ -897,13 +898,124 @@ async function performFetch(req, res, targetUrl, options = {}) {
 
   try {
     const response = await fetch(targetUrl, fetchOptions);
-    
+
     // Get content type
     const contentType = response.headers.get('content-type') || 'application/octet-stream';
-    
+
     // Check if rewrite mode is enabled (only for HTML)
     const shouldRewrite = req.query.rewrite === 'true' && contentType.includes('text/html');
-    
+
+    // Streaming mode for HTML - sends live updates as chunks arrive
+    if (shouldStream && contentType.includes('text/html')) {
+      res.set('Content-Type', 'text/html; charset=utf-8');
+      res.set('Transfer-Encoding', 'chunked');
+      res.set('Cache-Control', 'no-cache');
+
+      const proxyBase = PROXY_BASE;
+
+      // Inject streaming CSS and progressive loading script at the start
+      const streamIntro = `<!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+    <style>
+    body{margin:0;padding:20px;font-family:system-ui,sans-serif;background:#1a1a2e;color:#fff}
+    .loading-bar{position:fixed;top:0;left:0;height:3px;background:#58a6ff;width:0;transition:width 0.3s;z-index:9999}
+    .content{opacity:0;transition:opacity 0.5s}
+    .content.loaded{opacity:1}
+    </style>
+    </head>
+    <body>
+    <div class="loading-bar" id="loadBar"></div>
+    <div class="content" id="content"></div>
+    <script>
+    (function(){
+    var bar=document.getElementById('loadBar');
+    var content=document.getElementById('content');
+    var BASE='${proxyBase}';
+    var TARGET='${targetUrl}';
+
+    document.addEventListener('click',function(e){
+    var link=e.target.closest?e.target.closest('a'):(e.target.tagName==='A'?e.target:null);
+    if(link){e.preventDefault();var href=link.getAttribute('href');if(href)window.location.href=BASE+'/fetch?url='+encodeURIComponent(new URL(href,TARGET).href)+'&rewrite=true&stream=true';}
+    });
+    document.addEventListener('submit',function(e){
+    e.preventDefault();
+    var form=e.target;
+    var action=form.getAttribute('action')||window.location.pathname;
+    var method=(form.getAttribute('method')||'GET').toUpperCase();
+    var data=new FormData(form);
+    var params=new URLSearchParams(data);
+    var target=method==='GET'?action+'?'+params:action;
+    window.location.href=BASE+'/fetch?url='+encodeURIComponent(new URL(target,TARGET).href)+'&rewrite=true&stream=true';
+    });
+    })();
+    <\/script>
+    `;
+
+      res.write(streamIntro);
+
+      // Process the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            if (buffer) {
+              const final = rewriteHtml(buffer, targetUrl);
+              res.write(final);
+            }
+            res.write('<script>bar.style.width="100%";content.classList.add("loaded");<\/script></body></html>');
+            return res.end();
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+
+          while (buffer.length > 0) {
+            const closeIndex = buffer.indexOf('</');
+            const openIndex = buffer.indexOf('<', Math.max(0, buffer.length - 200));
+
+            if (closeIndex !== -1 && (openIndex === -1 || closeIndex < closeIndex)) {
+              const toFlush = buffer.substring(0, closeIndex);
+              buffer = buffer.substring(closeIndex);
+              if (toFlush.trim()) {
+                const proxied = rewriteHtml(toFlush, targetUrl);
+                res.write(proxied);
+              }
+            } else if (buffer.length > 500) {
+              const lastOpen = buffer.lastIndexOf('<');
+              const lastClose = buffer.lastIndexOf('>');
+              if (lastOpen > lastClose) {
+                const toFlush = buffer.substring(0, lastOpen);
+                buffer = buffer.substring(lastOpen);
+                if (toFlush.trim()) {
+                  const proxied = rewriteHtml(toFlush, targetUrl);
+                  res.write(proxied);
+                }
+              } else {
+                const toFlush = buffer.substring(0, Math.max(0, buffer.length - 200));
+                buffer = buffer.substring(toFlush.length);
+                if (toFlush.trim()) {
+                  const proxied = rewriteHtml(toFlush, targetUrl);
+                  res.write(proxied);
+                }
+              }
+            } else {
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Stream error:', err);
+        res.write('</body></html>');
+        return res.end();
+      }
+    }
+
     // For HTML with rewrite enabled, we need text
     if (shouldRewrite) {
       const textBody = await response.text();
@@ -911,7 +1023,7 @@ async function performFetch(req, res, targetUrl, options = {}) {
       res.set('Content-Type', 'text/html');
       return res.send(rewrittenHtml);
     }
-    
+
     // For JSON, parse and return as JSON
     if (contentType.includes('application/json')) {
       const textBody = await response.text();
