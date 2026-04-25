@@ -1593,16 +1593,18 @@ app.get('/ai-text', async (req, res) => {
   }
   
   try {
-    // AI Horde text generation endpoint
-    const response = await fetch('https://aihorde.net/api/v2/text/generate', {
+    // AI Horde async text generation
+    const response = await fetch('https://aihorde.net/api/v2/generate/text/async', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '0000000000' // Anonymous API key
+        'apikey': '0000000000'
       },
       body: JSON.stringify({
         prompt: prompt,
-        models: [model]
+        params: {
+          model: model
+        }
       })
     });
     
@@ -1616,48 +1618,45 @@ app.get('/ai-text', async (req, res) => {
     
     const data = await response.json();
     
-    // Check if generation is still in progress
-    if (data.id) {
-      // Poll for results
-      const jobId = data.id;
-      const maxWait = 60000; // 60 seconds max
-      const startTime = Date.now();
-      
-      while (Date.now() - startTime < maxWait) {
-        await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds between checks
-        
-        const statusResponse = await fetch(`https://aihorde.net/api/v2/text/status/${jobId}`, {
-          headers: { 'apikey': '0000000000' }
-        });
-        
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          
-          if (statusData.done) {
-            const generatedText = statusData.generations?.[0]?.text || '';
-            return res.json({
-              prompt: prompt,
-              response: generatedText,
-              model: model,
-              id: jobId
-            });
-          }
-        }
-      }
-      
-      return res.status(202).json({
-        error: 'Generation timeout',
-        details: 'The AI generation took too long. Please try again.',
-        id: jobId
+    if (!data.id) {
+      return res.json({
+        prompt: prompt,
+        response: data.generations?.[0]?.text || '',
+        model: model
       });
     }
     
-    const generatedText = data.generations?.[0]?.text || '';
+    // Poll for results
+    const jobId = data.id;
+    const maxWait = 60000;
+    const startTime = Date.now();
     
-    res.json({
-      prompt: prompt,
-      response: generatedText,
-      model: model
+    while (Date.now() - startTime < maxWait) {
+      await new Promise(r => setTimeout(r, 3000));
+      
+      const statusResponse = await fetch(`https://aihorde.net/api/v2/generate/text/status/${jobId}`, {
+        headers: { 'apikey': '0000000000' }
+      });
+      
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        
+        if (statusData.done) {
+          const generatedText = statusData.generations?.[0]?.text || '';
+          return res.json({
+            prompt: prompt,
+            response: generatedText,
+            model: model,
+            id: jobId
+          });
+        }
+      }
+    }
+    
+    return res.status(202).json({
+      error: 'Generation timeout',
+      details: 'The AI took too long. Try again.',
+      id: jobId
     });
   } catch (error) {
     res.status(500).json({ error: 'AI request failed', details: error.message });
