@@ -9,15 +9,15 @@ Open **`http://localhost:3000/`** in your browser to access the interactive test
 
 Click the buttons below to test different features:
 
-[![Load a website](https://opengate-8dyx.onrender.com/fetch?url=https://example.com&rewrite=true)
+[![Load a website](https://img.shields.io/badge/Load-Website-blue?style=for-the-badge)](https://opengate-8dyx.onrender.com/fetch?url=https://example.com&rewrite=true)
 
-[![Generate a random name](https://opengate-8dyx.onrender.com/social/generate?type=name)
+[![Generate a random name](https://img.shields.io/badge/Random-Name-green?style=for-the-badge)](https://opengate-8dyx.onrender.com/social/generate?type=name)
 
-[![Generate a random email](https://opengate-8dyx.onrender.com/social/generate?type=email)
+[![Generate a random email](https://img.shields.io/badge/Random-Email-orange?style=for-the-badge)](https://opengate-8dyx.onrender.com/social/generate?type=email)
 
-[![Generate a random phone number](https://opengate-8dyx.onrender.com/social/generate?type=phone)
+[![Generate a random phone number](https://img.shields.io/badge/Random-Phone-red?style=for-the-badge)](https://opengate-8dyx.onrender.com/social/generate?type=phone)
 
-[![Generate a random username](https://opengate-8dyx.onrender.com/social/generate?type=username)
+[![Generate a random username](https://img.shields.io/badge/Random-Username-purple?style=for-the-badge)](https://opengate-8dyx.onrender.com/social/generate?type=username)
 
 
 ### Features:
