@@ -920,107 +920,35 @@ async function performFetch(req, res, targetUrl, options = {}) {
 
       const proxyBase = getProxyBase(req);
 
-      // Inject streaming CSS and progressive loading script at the start
-      const streamIntro = `<!DOCTYPE html>
-    <html>
-    <head>
+      // Simple streaming - just pipe the response through with basic rewrites
+      res.write(`<!DOCTYPE html><html><head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
-    <style>
-    body{margin:0;padding:20px;font-family:system-ui,sans-serif;background:#1a1a2e;color:#fff}
-    .loading-bar{position:fixed;top:0;left:0;height:3px;background:#58a6ff;width:0;transition:width 0.3s;z-index:9999}
-    .content{opacity:0;transition:opacity 0.5s}
-    .content.loaded{opacity:1}
-    </style>
-    </head>
-    <body>
-    <div class="loading-bar" id="loadBar"></div>
-    <div class="content" id="content"></div>
+    <base href="${targetUrl}">
+    </head><body>
     <script>
-    (function(){
-    var bar=document.getElementById('loadBar');
-    var content=document.getElementById('content');
-    var BASE='${proxyBase}';
-    var TARGET='${targetUrl}';
-
+    var BASE='${proxyBase}',TARGET='${targetUrl}';
     document.addEventListener('click',function(e){
-    var link=e.target.closest?e.target.closest('a'):(e.target.tagName==='A'?e.target:null);
-    if(link){e.preventDefault();var href=link.getAttribute('href');if(href)window.location.href=BASE+'/fetch?url='+encodeURIComponent(new URL(href,TARGET).href)+'&rewrite=true&stream=true';}
+    var l=e.target.closest&&e.target.closest('a')||(e.target.tagName=='A'?e.target:null);
+    if(l){e.preventDefault();window.location.href=BASE+'/fetch?url='+encodeURIComponent(new URL(l.href,TARGET).href)+'&rewrite=true&stream=true';}
     });
-    document.addEventListener('submit',function(e){
-    e.preventDefault();
-    var form=e.target;
-    var action=form.getAttribute('action')||window.location.pathname;
-    var method=(form.getAttribute('method')||'GET').toUpperCase();
-    var data=new FormData(form);
-    var params=new URLSearchParams(data);
-    var target=method==='GET'?action+'?'+params:action;
-    window.location.href=BASE+'/fetch?url='+encodeURIComponent(new URL(target,TARGET).href)+'&rewrite=true&stream=true';
-    });
-    })();
-    <\/script>
-    `;
+    <\/script>`);
 
-      res.write(streamIntro);
+      // Stream directly with minimal processing
+      response.body.on('data', (chunk) => {
+        res.write(chunk);
+      });
 
-      // Process the stream
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      response.body.on('end', () => {
+        res.end('</body></html>');
+      });
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            if (buffer) {
-              const final = rewriteHtml(buffer, targetUrl);
-              res.write(final);
-            }
-            res.write('<script>bar.style.width="100%";content.classList.add("loaded");<\/script></body></html>');
-            return res.end();
-          }
-
-          buffer += decoder.decode(value, { stream: true });
-
-          while (buffer.length > 0) {
-            const closeIndex = buffer.indexOf('</');
-            const openIndex = buffer.indexOf('<', Math.max(0, buffer.length - 200));
-
-            if (closeIndex !== -1 && (openIndex === -1 || closeIndex < closeIndex)) {
-              const toFlush = buffer.substring(0, closeIndex);
-              buffer = buffer.substring(closeIndex);
-              if (toFlush.trim()) {
-                const proxied = rewriteHtml(toFlush, targetUrl);
-                res.write(proxied);
-              }
-            } else if (buffer.length > 500) {
-              const lastOpen = buffer.lastIndexOf('<');
-              const lastClose = buffer.lastIndexOf('>');
-              if (lastOpen > lastClose) {
-                const toFlush = buffer.substring(0, lastOpen);
-                buffer = buffer.substring(lastOpen);
-                if (toFlush.trim()) {
-                  const proxied = rewriteHtml(toFlush, targetUrl);
-                  res.write(proxied);
-                }
-              } else {
-                const toFlush = buffer.substring(0, Math.max(0, buffer.length - 200));
-                buffer = buffer.substring(toFlush.length);
-                if (toFlush.trim()) {
-                  const proxied = rewriteHtml(toFlush, targetUrl);
-                  res.write(proxied);
-                }
-              }
-            } else {
-              break;
-            }
-          }
-        }
-      } catch (err) {
+      response.body.on('error', (err) => {
         console.error('Stream error:', err);
-        res.write('</body></html>');
-        return res.end();
-      }
+        res.end('</body></html>');
+      });
+
+      return;
     }
 
     // For HTML with rewrite enabled, we need text
