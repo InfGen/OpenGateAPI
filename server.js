@@ -1155,9 +1155,9 @@ app.get('/ai-text', async (req, res) => {
   }
 
   try {
-    // Use a more reliable free model endpoint
+    // Use BigScience BLOOMZ model - works with inference API
     const response = await fetch(
-      'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large',
+      'https://api-inference.huggingface.co/models/bigscience/bloomz',
       {
         method: 'POST',
         headers: {
@@ -1166,8 +1166,9 @@ app.get('/ai-text', async (req, res) => {
         body: JSON.stringify({
           inputs: prompt,
           parameters: {
-            max_new_tokens: 100,
-            temperature: 0.8
+            max_new_tokens: 80,
+            temperature: 0.8,
+            do_sample: true
           }
         })
       }
@@ -1183,22 +1184,21 @@ app.get('/ai-text', async (req, res) => {
       });
     }
 
-    // Handle JSON responses
+    // Parse JSON response
     if (contentType && contentType.includes('application/json')) {
       const data = JSON.parse(text);
-      const generatedText = Array.isArray(data) ? data[0]?.generated_text : data.generated_text || '';
+      const generatedText = Array.isArray(data) ? data[0]?.generated_text : data.generated_text || text;
       return res.json({
         prompt: prompt,
-        response: generatedText,
-        model: 'microsoft/DialoGPT-large'
+        response: generatedText.trim(),
+        model: 'bigscience/bloomz'
       });
     }
 
-    // Return raw text if not JSON
     res.json({
       prompt: prompt,
-      response: text.substring(0, 500),
-      model: 'microsoft/DialoGPT-large'
+      response: text.substring(0, 500).trim(),
+      model: 'bigscience/bloomz'
     });
   } catch (error) {
     res.status(500).json({ error: 'AI request failed', details: error.message });
