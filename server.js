@@ -912,42 +912,47 @@ async function performFetch(req, res, targetUrl, options = {}) {
     // Check if rewrite mode is enabled (only for HTML)
     const shouldRewrite = req.query.rewrite === 'true' && contentType.includes('text/html');
 
-    // Streaming mode for HTML - sends live updates as chunks arrive
+    // Streaming mode for HTML - sends content as it arrives
     if (shouldStream && contentType.includes('text/html')) {
-      res.set('Content-Type', 'text/html; charset=utf-8');
-      res.set('Transfer-Encoding', 'chunked');
-      res.set('Cache-Control', 'no-cache');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      res.setHeader('Cache-Control', 'no-cache');
 
       const proxyBase = getProxyBase(req);
 
-      // Simple streaming - just pipe the response through with basic rewrites
-      res.write(`<!DOCTYPE html><html><head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
-    <base href="${targetUrl}">
-    </head><body>
-    <script>
+      // Write intro with click handler
+      const intro = `<!DOCTYPE html><html><head><meta charset="utf-8"><base href="${targetUrl}"></head><body><script>
     var BASE='${proxyBase}',TARGET='${targetUrl}';
     document.addEventListener('click',function(e){
     var l=e.target.closest&&e.target.closest('a')||(e.target.tagName=='A'?e.target:null);
     if(l){e.preventDefault();window.location.href=BASE+'/fetch?url='+encodeURIComponent(new URL(l.href,TARGET).href)+'&rewrite=true&stream=true';}
     });
-    <\/script>`);
+    <\/script>`;
+      res.write(intro);
 
-      // Stream directly with minimal processing
-      response.body.on('data', (chunk) => {
-        res.write(chunk);
-      });
+      // Use async iterator for streaming
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
 
-      response.body.on('end', () => {
-        res.end('</body></html>');
-      });
+      const pump = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              res.write('</body></html>');
+              res.end();
+              return;
+            }
+            res.write(value);
+          }
+        } catch (err) {
+          console.error('Stream error:', err);
+          res.write('</body></html>');
+          res.end();
+        }
+      };
 
-      response.body.on('error', (err) => {
-        console.error('Stream error:', err);
-        res.end('</body></html>');
-      });
-
+      pump();
       return;
     }
 
@@ -955,7 +960,7 @@ async function performFetch(req, res, targetUrl, options = {}) {
     if (shouldRewrite) {
       const textBody = await response.text();
       const rewrittenHtml = rewriteHtml(textBody, targetUrl);
-      res.set('Content-Type', 'text/html');
+      res.setHeader('Content-Type', 'text/html');
       return res.send(rewrittenHtml);
     }
 
