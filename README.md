@@ -1,4 +1,4 @@
-# OpenGate API V2.0
+# OpenGate API V2.4
 
 A free API that lets users do more with less effort.
 
@@ -338,6 +338,25 @@ curl "https://opengate-8dyx.onrender.com/delay?ms=2000"
   "message": "Delayed for 2000 milliseconds"
 }
 ```
+
+---
+
+### /ai-text
+Generate AI-powered text responses using distributed AI (free, no API key).
+
+```bash
+curl "https://opengate-8dyx.onrender.com/ai-text?prompt=Hello%20world"
+```
+
+**Response:**
+```json
+{
+  "prompt": "Hello world",
+  "response": "Hello! How can I help you today?"
+}
+```
+
+*Note: Responses may take a few seconds due to distributed AI processing.*
 
 ---
 
