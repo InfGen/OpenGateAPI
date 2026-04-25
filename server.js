@@ -877,84 +877,273 @@ app.post('/fetch', async (req, res) => {
   await performFetch(req, res, validation.href, { method, headers, body });
 });
 
-// GET /yt-audio endpoint - Download YouTube video as audio (.webm)
-app.get('/yt-audio', async (req, res) => {
-  const { url } = req.query;
+// ============================================
+// Utility Endpoints
+// ============================================
 
-  if (!url) {
-    return res.status(400).json({
-      error: 'Missing URL parameter',
-      details: 'Please provide a YouTube URL: /yt-audio?url=<youtube_url>'
-    });
-  }
+// GET /timestamp - Returns current time in multiple formats
+app.get('/timestamp', (req, res) => {
+  const now = new Date();
+  res.json({
+    iso: now.toISOString(),
+    utc: now.toUTCString(),
+    unix: now.getTime(),
+    readable: now.toLocaleString(),
+    unix_seconds: Math.floor(now.getTime() / 1000)
+  });
+});
 
-  // Validate it's a YouTube URL
-  const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
-  if (!youtubeRegex.test(url)) {
-    return res.status(400).json({
-      error: 'Invalid YouTube URL',
-      details: 'Please provide a valid YouTube video URL'
+// GET /ip - Returns user's IP address
+app.get('/ip', (req, res) => {
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  res.json({ ip: ip });
+});
+
+// GET /location - Returns user's location via IP address
+app.get('/location', async (req, res) => {
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  
+  // Skip private IPs
+  if (ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.') || ip === '::1' || ip === '::ffff:127.0.0.1') {
+    return res.json({
+      ip: ip,
+      error: 'Cannot determine location for private/local IP'
     });
   }
 
   try {
-    console.log(`[YtAudio] Processing: ${url}`);
-
-    // Use ytdl-core to get audio stream
-    const ytdl = require('ytdl-core');
-    
-    // Get video info
-    const info = await ytdl.getInfo(url);
-    const title = info.videoDetails.title.replace(/[^\w\s-]/g, '');
-    
-    // Get audio format (prefer webm for audio)
-    const audioFormat = ytdl.chooseFormat(info.formats, {
-      filter: 'audioonly',
-      quality: 'highestaudio'
-    });
-
-    if (!audioFormat) {
-      return res.status(500).json({
-        error: 'No audio format available',
-        details: 'Could not find a suitable audio format for this video'
+    const response = await fetch(`http://ip-api.com/json/${ip}`);
+    const data = await response.json();
+    if (data.status === 'success') {
+      res.json({
+        ip: ip,
+        country: data.country,
+        countryCode: data.countryCode,
+        region: data.regionName,
+        city: data.city,
+        zip: data.zip,
+        latitude: data.lat,
+        longitude: data.lon,
+        timezone: data.timezone
       });
+    } else {
+      res.json({ ip: ip, error: 'Could not determine location' });
     }
-
-    console.log(`[YtAudio] Streaming: ${title} (${audioFormat.container})`);
-
-    // Set response headers
-    res.set('Content-Type', audioFormat.mimeRef || 'audio/webm');
-    res.set('Content-Disposition', `attachment; filename="${title}.${audioFormat.container}"`);
-    res.set('Content-Length', audioFormat.contentLength || '0');
-
-    // Stream the audio
-    const stream = ytdl.downloadFromInfo(info, { format: audioFormat });
-    
-    stream.on('error', (error) => {
-      console.error('[YtAudio] Stream error:', error.message);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Stream failed', details: error.message });
-      }
-    });
-
-    stream.pipe(res);
-
-    console.log(`[YtAudio] Completed: ${title}`);
   } catch (error) {
-    console.error('[YtAudio] Error:', error.message);
-    
-    if (error.message.includes('Video unavailable')) {
-      return res.status(404).json({
-        error: 'Video unavailable',
-        details: 'This YouTube video is unavailable or has been removed'
-      });
-    }
-    
-    return res.status(500).json({
-      error: 'Failed to download YouTube audio',
-      details: error.message
-    });
+    res.json({ ip: ip, error: 'Location lookup failed' });
   }
+});
+
+// GET /timezone - Returns user's timezone
+app.get('/timezone', (req, res) => {
+  const now = new Date();
+  res.json({
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    offset: now.getTimezoneOffset(),
+    offset_hours: -(now.getTimezoneOffset() / 60),
+    abbr: now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop()
+  });
+});
+
+// GET /slug - Converts text to URL slugs
+app.get('/slug', (req, res) => {
+  const { text } = req.query;
+  if (!text) {
+    return res.status(400).json({ error: 'Missing text parameter' });
+  }
+  const slug = text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  res.json({ input: text, slug: slug });
+});
+
+// GET /scrape - Returns headers, links, and title from a URL
+app.get('/scrape', async (req, res) => {
+  const { url } = req.query;
+  if (!url) {
+    return res.status(400).json({ error: 'Missing url parameter' });
+  }
+
+  try {
+    const validation = validateUrl(url);
+    if (validation.valid === false) {
+      return res.status(403).json({ error: validation.error });
+    }
+
+    const response = await fetch(validation.href, {
+      headers: { 'User-Agent': BROWSER_USER_AGENT }
+    });
+    const html = await response.text();
+
+    // Extract title
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : '';
+
+    // Extract meta description
+    const descMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/i);
+    const description = descMatch ? descMatch[1] : '';
+
+    // Extract links
+    const linkMatches = html.match(/<a[^>]*href="([^"]+)"[^>]*>/gi) || [];
+    const links = linkMatches
+      .map(m => {
+        const match = m.match(/href="([^"]+)"/);
+        return match ? match[1] : null;
+      })
+      .filter(l => l && !l.startsWith('#') && !l.startsWith('javascript:'));
+
+    // Extract headers
+    const h1s = (html.match(/<h1[^>]*>([^<]+)<\/h1>/gi) || []).map(m => m.replace(/<[^>]+>/g, ''));
+    const h2s = (html.match(/<h2[^>]*>([^<]+)<\/h2>/gi) || []).map(m => m.replace(/<[^>]+>/g, ''));
+
+    res.json({
+      url: validation.href,
+      title: title,
+      description: description,
+      links: [...new Set(links)].slice(0, 100),
+      h1s: h1s.slice(0, 20),
+      h2s: h2s.slice(0, 20),
+      link_count: links.length
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to scrape URL', details: error.message });
+  }
+});
+
+// GET /ping - Measures response time for a URL
+app.get('/ping', async (req, res) => {
+  const { url } = req.query;
+  if (!url) {
+    return res.status(400).json({ error: 'Missing url parameter' });
+  }
+
+  try {
+    const validation = validateUrl(url);
+    if (validation.valid === false) {
+      return res.status(403).json({ error: validation.error });
+    }
+
+    const start = Date.now();
+    const response = await fetch(validation.href, {
+      headers: { 'User-Agent': BROWSER_USER_AGENT }
+    });
+    const end = Date.now();
+
+    res.json({
+      url: validation.href,
+      status: response.status,
+      response_time_ms: end - start,
+      response_time_seconds: (end - start) / 1000
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Ping failed', details: error.message });
+  }
+});
+
+// GET /count-text - Returns character count, word count, and sentence count
+app.get('/count-text', (req, res) => {
+  const { text } = req.query;
+  if (!text) {
+    return res.status(400).json({ error: 'Missing text parameter' });
+  }
+
+  const charCount = text.length;
+  const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const sentenceCount = (text.match(/[.!?]+/g) || []).length || (text.trim().length > 0 ? 1 : 0);
+  const paragraphCount = (text.match(/\n\n+/g) || []).length + (text.trim().length > 0 ? 1 : 0);
+
+  res.json({
+    text: text,
+    characters: charCount,
+    words: wordCount,
+    sentences: sentenceCount,
+    paragraphs: paragraphCount
+  });
+});
+
+// GET /hex-to-colour - Returns colour name from hex code
+app.get('/hex-to-colour', (req, res) => {
+  const { hex } = req.query;
+  if (!hex) {
+    return res.status(400).json({ error: 'Missing hex parameter' });
+  }
+
+  const colorNames = {
+    '#FF0000': 'Red', '#00FF00': 'Lime', '#0000FF': 'Blue',
+    '#FFFF00': 'Yellow', '#FF00FF': 'Magenta', '#00FFFF': 'Cyan',
+    '#FFFFFF': 'White', '#000000': 'Black', '#808080': 'Gray',
+    '#FFA500': 'Orange', '#800080': 'Purple', '#FFC0CB': 'Pink',
+    '#A52A2A': 'Brown', '#000080': 'Navy', '#808000': 'Olive',
+    '#008000': 'Green', '#800000': 'Maroon', '#0000FF': 'Blue',
+    '#008080': 'Teal', '#4169E1': 'Royal Blue', '#DC143C': 'Crimson',
+    '#FFD700': 'Gold', '#C0C0C0': 'Silver', '#2E8B57': 'Sea Green',
+    '#FF6347': 'Tomato', '#9370DB': 'Medium Purple', '#3CB371': 'Medium Sea Green',
+    '#FF69B4': 'Hot Pink', '#DDA0DD': 'Plum', '#B0C4DE': 'Light Steel Blue'
+  };
+
+  const cleanHex = '#' + hex.replace('#', '').toUpperCase();
+  const rgbMatch = cleanHex.match(/^#?([A-Fa-f0-9]{6})$/);
+  
+  if (!rgbMatch) {
+    return res.status(400).json({ error: 'Invalid hex code format' });
+  }
+
+  const r = parseInt(cleanHex.slice(1, 3), 16);
+  const g = parseInt(cleanHex.slice(3, 5), 16);
+  const b = parseInt(cleanHex.slice(5, 7), 16);
+
+  // Find closest named color
+  let closestName = 'Unknown';
+  let closestDist = Infinity;
+  for (const [namedHex, name] of Object.entries(colorNames)) {
+    const nr = parseInt(namedHex.slice(1, 3), 16);
+    const ng = parseInt(namedHex.slice(3, 5), 16);
+    const nb = parseInt(namedHex.slice(5, 7), 16);
+    const dist = Math.sqrt(Math.pow(r - nr, 2) + Math.pow(g - ng, 2) + Math.pow(b - nb, 2));
+    if (dist < closestDist) {
+      closestDist = dist;
+      closestName = name;
+    }
+  }
+
+  res.json({
+    hex: cleanHex,
+    rgb: `rgb(${r}, ${g}, ${b})`,
+    colour_name: closestName
+  });
+});
+
+// GET /sanitize - Removes unsafe characters
+app.get('/sanitize', (req, res) => {
+  const { text } = req.query;
+  if (!text) {
+    return res.status(400).json({ error: 'Missing text parameter' });
+  }
+
+  const sanitized = text
+    .replace(/[<>'"&]/g, '')
+    .replace(/[\x00-\x1F]/g, '')
+    .trim();
+
+  res.json({
+    original: text,
+    sanitized: sanitized
+  });
+});
+
+// GET /delay - Simulates API delay
+app.get('/delay', async (req, res) => {
+  const ms = Math.min(parseInt(req.query.ms) || 2000, 30000);
+  
+  await new Promise(resolve => setTimeout(resolve, ms));
+  
+  res.json({
+    delayed_ms: ms,
+    message: `Delayed for ${ms} milliseconds`
+  });
 });
 
 // Social data generation endpoint
