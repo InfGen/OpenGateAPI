@@ -78,7 +78,7 @@ async function takeScreenshot(targetUrl, options = {}) {
     });
 
     // Wait for specified time
-    await page.waitForTimeout(parseInt(waitFor));
+    await new Promise(resolve => setTimeout(resolve, parseInt(waitFor)));
 
     // Wait for selector if specified
     if (selector) {

@@ -2,9 +2,11 @@ services:
   - type: web
     name: freeapi
     env: node
-    buildCommand: npm install
+    buildCommand: npm install && npx puppeteer browsers install chrome
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PUPPETEER_CACHE_DIR
+        value: .cache/puppeteer
     plan: starter
