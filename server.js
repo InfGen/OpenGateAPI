@@ -9,6 +9,13 @@ const PORT = process.env.PORT || 3000;
 // Configuration
 // ============================================
 
+// Get proxy base URL from request headers or default
+function getProxyBase(req) {
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.headers.host || 'localhost:3000';
+  return `${protocol}://${host}`;
+}
+
 // Domain allowlist - set to empty array to allow all domains
 const ALLOWED_DOMAINS = [];
 
@@ -911,7 +918,7 @@ async function performFetch(req, res, targetUrl, options = {}) {
       res.set('Transfer-Encoding', 'chunked');
       res.set('Cache-Control', 'no-cache');
 
-      const proxyBase = PROXY_BASE;
+      const proxyBase = getProxyBase(req);
 
       // Inject streaming CSS and progressive loading script at the start
       const streamIntro = `<!DOCTYPE html>
