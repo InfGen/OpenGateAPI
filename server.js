@@ -206,13 +206,15 @@ function createSafeHeaders(customHeaders = {}, targetUrl = '', originalReq = nul
 
 /**
  * Rewrites HTML content to proxy URLs through this API
- * Handles: src, href, srcset, data-src, poster, action, and CSS url()
+ * Handles: src, href, srcset, data-src, poster, action, srcdoc, and CSS url()
+ * Also removes/modifies CSP headers that block iframes
  * @param {string} html - The HTML content to rewrite
  * @param {string} baseUrl - The base URL of the fetched page
  * @returns {string} - Rewritten HTML
  */
 function rewriteHtml(html, baseUrl) {
   const base = new URL(baseUrl);
+  const baseOrigin = base.origin;
   
   // Helper to resolve relative URLs
   const resolveUrl = (url) => {
@@ -232,11 +234,120 @@ function rewriteHtml(html, baseUrl) {
   // Helper to create proxy URL - add _proxy=1 marker to skip rate limiting for sub-resources
   const proxyUrl = (url) => `/fetch?url=${encodeURIComponent(resolveUrl(url))}&_proxy=1`;
   
+  // Remove CSP meta tags that block iframes and scripts
+  html = html.replace(/<meta[^>]+content-security-policy[^>]*>/gi, '<meta http-equiv="Content-Security-Policy" content="default-src * \'unsafe-inline\' \'unsafe-eval\' data: blob:;">');
+  html = html.replace(/<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]*>/gi, '');
+  
+  // Remove X-Frame-Options headers simulation via meta tag
+  html = html.replace(/<meta[^>]+x-frame-options[^>]*>/gi, '');
+  
   // Rewrite src attributes (images, scripts, iframes, videos, audio)
   html = html.replace(
     /\bsrc\s*=\s*["']([^"']+)["']/gi,
     (match, url) => `src="${proxyUrl(url)}"`
   );
+  
+  // Rewrite srcdoc attributes (inline iframe content - convert to data URL with proxy)
+  html = html.replace(
+    /\bsrcdoc\s*=\s*["']([^"']+)["']/gi,
+    (match, content) => {
+      // Base64 encode the srcdoc content and wrap in srcdoc pointing to blob
+      const encoded = Buffer.from(content).toString('base64');
+      return `srcdoc="<meta http-equiv='Content-Security-Policy' content=\"default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;\"><script>location.replace('data:text/html;base64,${encoded}');<\/script>"`
+    }
+  );
+  
+  // Rewrite srcset attributes (responsive images)
+  html = html.replace(
+    /\bsrcset\s*=\s*["']([^"']+)["']/gi,
+    (match, srcset) => {
+      const urls = srcset.split(',').map(part => {
+        const [url, descriptor] = part.trim().split(/\s+/);
+        return `${proxyUrl(url)}${descriptor ? ' ' + descriptor : ''}`;
+      });
+      return `srcset="${urls.join(', ')}"`;
+    }
+  );
+  
+  // Rewrite data-src attributes (lazy loading libraries)
+  html = html.replace(
+    /\bdata-src\s*=\s*["']([^"']+)["']/gi,
+    (match, url) => `data-src="${proxyUrl(url)}"`
+  );
+  
+  // Rewrite data-srcset attributes (lazy responsive images)
+  html = html.replace(
+    /\bdata-srcset\s*=\s*["']([^"']+)["']/gi,
+    (match, srcset) => {
+      const urls = srcset.split(',').map(part => {
+        const [url, descriptor] = part.trim().split(/\s+/);
+        return `${proxyUrl(url)}${descriptor ? ' ' + descriptor : ''}`;
+      });
+      return `data-srcset="${urls.join(', ')}"`;
+    }
+  );
+  
+  // Rewrite poster attributes (video thumbnails)
+  html = html.replace(
+    /\bposter\s*=\s*["']([^"']+)["']/gi,
+    (match, url) => `poster="${proxyUrl(url)}"`
+  );
+  
+  // Rewrite action attributes (forms)
+  html = html.replace(
+    /\baction\s*=\s*["']([^"']+)["']/gi,
+    (match, url) => {
+      if (url.startsWith('#') || url.startsWith('javascript:')) {
+        return match;
+      }
+      return `action="${proxyUrl(url)}"`;
+    }
+  );
+  
+  // Rewrite background attribute (deprecated but still used)
+  html = html.replace(
+    /\bbackground\s*=\s*["']([^"']+)["']/gi,
+    (match, url) => `background="${proxyUrl(url)}"`
+  );
+  
+  // Rewrite CSS url() references in inline styles
+  html = html.replace(
+    /style\s*=\s*["']([^"']*)["']/gi,
+    (match, styleContent) => {
+      const rewrittenStyle = styleContent.replace(
+        /url\s*\(\s*["']?([^"')]+)["']?\s*\)/gi,
+        (urlMatch, url) => `url("${proxyUrl(url)}")`
+      );
+      return `style="${rewrittenStyle}"`;
+    }
+  );
+  
+  // Rewrite <style> tag contents
+  html = html.replace(
+    /(<style[^>]*>)([\s\S]*?)(<\/style>)/gi,
+    (match, openTag, cssContent, closeTag) => {
+      const rewrittenCss = cssContent.replace(
+        /url\s*\(\s*["']?([^"')]+)["']?\s*\)/gi,
+        (urlMatch, url) => `url("${proxyUrl(url)}")`
+      );
+      // Also handle @import rules
+      const rewrittenCssWithImports = rewrittenCss.replace(
+        /@import\s+(?:url\s*\()?\s*["']([^"']+)["']\s*\)?/gi,
+        (importMatch, url) => `@import url("${proxyUrl(url)}")`
+      );
+      return `${openTag}${rewrittenCssWithImports}${closeTag}`;
+    }
+  );
+  
+  // Inject base tag to fix relative URLs
+  if (!html.includes('<base ')) {
+    html = html.replace(/<head([^>]*)>/i, `<head$1><base href="${baseOrigin}/">`);
+  }
+  
+  // Remove blocking scripts that check parent frame
+  html = html.replace(/if\s*\([\"']?parent[\"']?\s*[!=]=?/g, 'if (false &&');
+  html = html.replace(/if\s*\(window\s*!=\s*top\s*\)/g, 'if (false && window != top)');
+  html = html.replace(/top\.location/g, 'location');
   
   // Rewrite href attributes (links, stylesheets, etc.)
   html = html.replace(
