@@ -589,6 +589,16 @@ function rewriteHtml(html, baseUrl) {
   
   // Helper to convert any URL to proxied URL
   function toProxyUrl(url) {
+    // Already a proxy URL - decode and re-encode to clean it
+    if (url && url.includes('/fetch?url=')) {
+      try {
+        const match = url.match(/[?&]url=([^&]+)/);
+        if (match) {
+          url = decodeURIComponent(match[1]);
+        }
+      } catch(e) {}
+    }
+    
     if (!url || url.startsWith(PROXY_BASE + '/fetch')) return url;
     if (url.startsWith('javascript:') || url.startsWith('#') || url.startsWith('data:')) return url;
     if (url.startsWith('http://') || url.startsWith('https://')) {
