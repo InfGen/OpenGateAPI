@@ -1146,6 +1146,61 @@ app.get('/delay', async (req, res) => {
   });
 });
 
+// GET /ai-text - Send AI request via OpenRouter
+app.get('/ai-text', async (req, res) => {
+  const { prompt } = req.query;
+
+  if (!prompt) {
+    return res.status(400).json({ error: 'Missing prompt parameter' });
+  }
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'OpenRouter API key not configured' });
+  }
+
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://opengate-8dyx.onrender.com',
+        'X-Title': 'OpenGate API'
+      },
+      body: JSON.stringify({
+        model: 'openrouter/free',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: 'OpenRouter API error',
+        details: data.error?.message || data
+      });
+    }
+
+    const aiResponse = data.choices?.[0]?.message?.content || '';
+
+    res.json({
+      prompt: prompt,
+      response: aiResponse,
+      model: 'openrouter/free',
+      usage: data.usage
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'AI request failed', details: error.message });
+  }
+});
+
 // Social data generation endpoint
 app.get('/social/generate', (req, res) => {
   const { type, count = 1 } = req.query;

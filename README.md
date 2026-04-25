@@ -190,6 +190,29 @@ curl "https://opengate-8dyx.onrender.com/count-text?text=Hello%20world.%20How%20
 
 ---
 
+### /ai-text
+Send an AI request using OpenRouter (free model).
+
+```bash
+curl "https://opengate-8dyx.onrender.com/ai-text?prompt=Hello%20world"
+```
+
+**Response:**
+```json
+{
+  "prompt": "Hello world",
+  "response": "Hello! How can I help you today?",
+  "model": "openrouter/free",
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 15,
+    "total_tokens": 25
+  }
+}
+```
+
+---
+
 ### /hex-to-colour
 Converts hex color codes to colour names.
 
