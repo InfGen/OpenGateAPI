@@ -1584,142 +1584,47 @@ app.get('/word', async (req, res) => {
   }
 });
 
-// GET /analyse - Fetch a URL and provide research summary
-app.get('/analyse', async (req, res) => {
-  const { url } = req.query;
+// GET /ai-text - Generate text using AI Horde
+app.get('/ai-text', async (req, res) => {
+  const { prompt } = req.query;
   
-  if (!url) {
-    return res.status(400).json({ error: 'Missing url parameter' });
+  if (!prompt) {
+    return res.status(400).json({ error: 'Missing prompt parameter' });
   }
   
   try {
-    const validation = validateUrl(url);
-    if (validation.valid === false) {
-      return res.status(403).json({ error: validation.error });
-    }
-    
-    // Fetch the page
-    const response = await fetch(validation.href, {
-      headers: { 'User-Agent': BROWSER_USER_AGENT }
+    const response = await fetch('https://aihorde.net/api/v2/generate/text', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '0000000000'
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        models: ['koboldcpp/Kobold-7B-v1.2']
+      })
     });
     
-    const html = await response.text();
-    
-    // Extract title
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const title = titleMatch ? titleMatch[1].trim() : 'No title found';
-    
-    // Extract meta description
-    const descMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/i) ||
-                      html.match(/<meta[^>]*content="([^"]+)"[^>]*name="description"/i);
-    const description = descMatch ? descMatch[1] : '';
-    
-    // Extract meta keywords
-    const keywordsMatch = html.match(/<meta[^>]*name="keywords"[^>]*content="([^"]+)"/i);
-    const keywords = keywordsMatch ? keywordsMatch[1] : '';
-    
-    // Try to find additional context
-    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-    const h1 = h1Match ? h1Match[1].trim() : '';
-    
-    // Extract domain for context
-    const urlObj = new URL(validation.href);
-    const domain = urlObj.hostname;
-    
-    // Build analysis
-    let analysis = `This is ${domain}. `;
-    
-    if (title && title !== 'No title found') {
-      analysis += `The page title is "${title}". `;
-    }
-    
-    if (description) {
-      analysis += `According to its meta description: "${description.substring(0, 200)}${description.length > 200 ? '...' : ''}" `;
-    }
-    
-    if (h1) {
-      analysis += `The main heading states: "${h1}". `;
-    }
-    
-    if (keywords) {
-      const kwList = keywords.split(',').slice(0, 5).map(k => k.trim()).join(', ');
-      analysis += `Keywords associated with this page: ${kwList}. `;
-    }
-    
-    const contentType = response.headers.get('content-type') || '';
-    analysis += `This page is hosted at ${domain} and appears to be a ${contentType.includes('text/html') ? 'web page' : 'resource'}.`;
-    
-    res.json({
-      url: validation.href,
-      domain: domain,
-      title: title,
-      description: description || null,
-      keywords: keywords ? keywords.split(',').slice(0, 10).map(k => k.trim()) : [],
-      analysis: analysis.trim(),
-      status: response.status
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to analyse URL', details: error.message });
-  }
-});
-
-// GET /wiki - Search Wikipedia for information
-app.get('/wiki', async (req, res) => {
-  const { search } = req.query;
-  
-  if (!search) {
-    return res.status(400).json({ error: 'Missing search parameter' });
-  }
-  
-  try {
-    // Search Wikipedia API
-    const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(search)}&limit=5&format=json`;
-    const searchResponse = await fetch(searchUrl);
-    const searchData = await searchResponse.json();
-    
-    if (!searchData || !searchData[1] || searchData[1].length === 0) {
-      return res.status(404).json({ error: 'No Wikipedia results found', search: search });
-    }
-    
-    const titles = searchData[1];
-    const summaries = searchData[2];
-    const urls = searchData[3];
-    
-    // Get more details from the first result
-    const firstTitle = titles[0];
-    const pageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(firstTitle)}`;
-    const pageResponse = await fetch(pageUrl);
-    
-    if (!pageResponse.ok) {
-      return res.json({
-        search: search,
-        results: titles.map((title, i) => ({
-          title: title,
-          summary: summaries[i] || '',
-          url: urls[i] || ''
-        }))
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({
+        error: 'AI Horde API error',
+        details: errorText.substring(0, 200)
       });
     }
     
-    const pageData = await pageResponse.json();
+    const data = await response.json();
+    
+    // AI Horde returns_generations array with text
+    const generatedText = data.generations?.[0]?.text || '';
     
     res.json({
-      search: search,
-      results: titles.map((title, i) => ({
-        title: title,
-        summary: summaries[i] || pageData.extract || '',
-        url: urls[i] || '',
-        thumbnail: pageData.thumbnail?.source || null
-      })),
-      topResult: {
-        title: pageData.title || firstTitle,
-        extract: pageData.extract || summaries[0] || '',
-        url: `https://en.wikipedia.org/wiki/${encodeURIComponent(pageData.title || firstTitle)}`,
-        thumbnail: pageData.thumbnail?.source || null
-      }
+      prompt: prompt,
+      response: generatedText,
+      model: 'koboldcpp/Kobold-7B-v1.2'
     });
   } catch (error) {
-    res.status(500).json({ error: 'Wikipedia lookup failed', details: error.message });
+    res.status(500).json({ error: 'AI request failed', details: error.message });
   }
 });
 
