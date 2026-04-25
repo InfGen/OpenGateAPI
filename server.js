@@ -1586,7 +1586,7 @@ app.get('/word', async (req, res) => {
 
 // GET /ai-text - Generate text using AI Horde (free distributed AI)
 app.get('/ai-text', async (req, res) => {
-  const { prompt, model = 'openchat/openchat-7b' } = req.query;
+  const { prompt, model = 'meta-llama/llama-3-70b-instruct' } = req.query;
   
   if (!prompt) {
     return res.status(400).json({ error: 'Missing prompt parameter' });
