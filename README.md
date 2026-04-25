@@ -17,173 +17,303 @@ Click the buttons below to test different features:
 
 [![Generate a random username](https://img.shields.io/badge/Random-Username-purple?style=for-the-badge)](https://opengate-8dyx.onrender.com/social/generate?type=username)
 
+---
 
-### Features:
+## Fetch Endpoint
 
-## Fetch 
-- **/fetch** - Fetch any URL with query parameter
-- **Example** - https://opengate-8dyx.onrender.com/fetch?url=https://example.com&rewrite=true
-----------------------------------------------------------------------------------------------------
-## Utility Endpoints
+**/fetch** - Fetch any URL with CORS headers and optional HTML rewriting.
 
-**/timestamp** - Returns current time in multiple formats
 ```bash
-curl "https://opengate-8dyx.onrender.com/timestamp"
+curl "https://opengate-8dyx.onrender.com/fetch?url=https://example.com&rewrite=true"
 ```
-Returns: `{ "iso": "...", "utc": "...", "unix": ..., "readable": "...", "unix_seconds": ... }`
-
-**/ip** - Returns user's IP address
-```bash
-curl "https://opengate-8dyx.onrender.com/ip"
-```
-
-**/location** - Returns user's location via IP address
-```bash
-curl "https://opengate-8dyx.onrender.com/location"
-```
-Returns: `{ "ip": "...", "country": "...", "city": "...", "latitude": ..., "longitude": ..., "timezone": "..." }`
-
-**/timezone** - Returns user's timezone
-```bash
-curl "https://opengate-8dyx.onrender.com/timezone"
-```
-
-**/slug?text=** - Converts text to URL slugs
-```bash
-curl "https://opengate-8dyx.onrender.com/slug?text=Hello%20World"
-# Returns: { "input": "Hello World", "slug": "hello-world" }
-```
-
-**/scrape?url=** - Returns headers, links, and title from a URL
-```bash
-curl "https://opengate-8dyx.onrender.com/scrape?url=https://example.com"
-```
-Returns: `{ "url": "...", "title": "...", "description": "...", "links": [...], "h1s": [...], "link_count": ... }`
-
-**/ping?url=** - Measures response time for a URL
-```bash
-curl "https://opengate-8dyx.onrender.com/ping?url=https://example.com"
-```
-Returns: `{ "url": "...", "status": 200, "response_time_ms": ..., "response_time_seconds": ... }`
-
-**/count-text?text=** - Returns character count, word count, and sentence count
-```bash
-curl "https://opengate-8dyx.onrender.com/count-text?text=Hello%20world."
-```
-Returns: `{ "text": "...", "characters": ..., "words": ..., "sentences": ..., "paragraphs": ... }`
-
-**/hex-to-colour?hex=** - Returns colour name from hex code
-```bash
-curl "https://opengate-8dyx.onrender.com/hex-to-colour?hex=FF0000"
-```
-Returns: `{ "hex": "#FF0000", "rgb": "rgb(255, 0, 0)", "colour_name": "Red" }`
-
-**/sanitize?text=** - Removes unsafe characters
-```bash
-curl "https://opengate-8dyx.onrender.com/sanitize?text=<script>alert('xss')</script>"
-```
-Returns: `{ "original": "...", "sanitized": "scriptalert(xss)/script" }`
-
-**/delay?ms=** - Simulates API delay (max 30000ms)
-```bash
-curl "https://opengate-8dyx.onrender.com/delay?ms=2000"
-```
-Returns: `{ "delayed_ms": 2000, "message": "Delayed for 2000 milliseconds" }`
-
-### Health
-
-**/health** - Health check endpoint.
-
-**Example:**
-```URL
-Https://opengate-8dyx.onrender.com/health
-```
----------------------------------------------------------------------------------------
-### Social Generations
-
-Generate fake social data (emails, phone numbers, names, usernames).
 
 **Query Parameters:**
-- `?type=` (required) - Types to generate: `email`, `phone`, `name`, `username`
-- `&count=` (optional) - Number of items (max 100, default: 1)
+- `?url=` (required) - The URL to fetch
+- `&rewrite=` (optional) - Rewrite HTML to proxy resources through the API
 
-**Example:**
-```URL
-# Generate 1 fake email
-http://https://opengate-8dyx.onrender.com/social/generate?type=email
+---
 
-# Generate 5 fake phone numbers
-http://https://opengate-8dyx.onrender.com/social/generate?type=phone&count=5
-```
+## Utility Endpoints
 
+### /timestamp
+Returns current time in multiple formats.
 
-### /text/parse-entities
-
-Extract entities (emails, phones, URLs, names, dates) from text.
-
-**Request Body:**
-```json
-{
-  "text": "My email is bluh@bluh.com and my number is +1 234 334 343"
-}
-```
-
-**Example:**
-```Curl
-curl -X POST "http://https://opengate-8dyx.onrender.com/text/parse-entities" \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Contact Monkey@OpenGate.com or call +1 604 674 6331"}'
+```bash
+curl "https://opengate-8dyx.onrender.com/timestamp"
 ```
 
 **Response:**
 ```json
 {
-  "text": "Contact Monkey@OpenGate.com or call +1 604 674 6331",
-  "emails": ["Monkey@OpenGate.com"],
-  "phones": ["+1 604 674 6331"],
+  "iso": "2024-01-15T10:30:00.000Z",
+  "utc": "Mon, 15 Jan 2024 10:30:00 GMT",
+  "unix": 1705315800000,
+  "readable": "1/15/2024, 10:30:00 AM",
+  "unix_seconds": 1705315800
+}
+```
+
+---
+
+### /ip
+Returns your IP address.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/ip"
+```
+
+**Response:**
+```json
+{ "ip": "203.0.113.42" }
+```
+
+---
+
+### /location
+Returns your location based on IP address.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/location"
+```
+
+**Response:**
+```json
+{
+  "ip": "203.0.113.42",
+  "country": "United States",
+  "countryCode": "US",
+  "region": "California",
+  "city": "San Francisco",
+  "zip": "94102",
+  "latitude": 37.7749,
+  "longitude": -122.4194,
+  "timezone": "America/Los_Angeles"
+}
+```
+
+---
+
+### /timezone
+Returns your timezone information.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/timezone"
+```
+
+**Response:**
+```json
+{
+  "timezone": "America/New_York",
+  "offset": -300,
+  "offset_hours": -5,
+  "abbr": "EST"
+}
+```
+
+---
+
+### /slug
+Converts text to URL-friendly slugs.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/slug?text=Hello%20World"
+```
+
+**Response:**
+```json
+{
+  "input": "Hello World",
+  "slug": "hello-world"
+}
+```
+
+---
+
+### /scrape
+Extracts metadata from a webpage (title, description, links, headers).
+
+```bash
+curl "https://opengate-8dyx.onrender.com/scrape?url=https://example.com"
+```
+
+**Response:**
+```json
+{
+  "url": "https://example.com",
+  "title": "Example Domain",
+  "description": "Example domain description",
+  "links": ["https://www.iana.org/domains/example"],
+  "h1s": ["Example Domain"],
+  "h2s": [],
+  "link_count": 1
+}
+```
+
+---
+
+### /ping
+Measures response time for a URL.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/ping?url=https://example.com"
+```
+
+**Response:**
+```json
+{
+  "url": "https://example.com",
+  "status": 200,
+  "response_time_ms": 145,
+  "response_time_seconds": 0.145
+}
+```
+
+---
+
+### /count-text
+Analyzes text and returns counts.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/count-text?text=Hello%20world.%20How%20are%20you?"
+```
+
+**Response:**
+```json
+{
+  "text": "Hello world. How are you?",
+  "characters": 26,
+  "words": 5,
+  "sentences": 2,
+  "paragraphs": 1
+}
+```
+
+---
+
+### /hex-to-colour
+Converts hex color codes to colour names.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/hex-to-colour?hex=FF0000"
+```
+
+**Response:**
+```json
+{
+  "hex": "#FF0000",
+  "rgb": "rgb(255, 0, 0)",
+  "colour_name": "Red"
+}
+```
+
+---
+
+### /sanitize
+Removes unsafe characters from text.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/sanitize?text=<script>alert('xss')</script>"
+```
+
+**Response:**
+```json
+{
+  "original": "<script>alert('xss')</script>",
+  "sanitized": "scriptalert(xss)/script"
+}
+```
+
+---
+
+### /delay
+Simulates an API delay for testing.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/delay?ms=2000"
+```
+
+**Response:**
+```json
+{
+  "delayed_ms": 2000,
+  "message": "Delayed for 2000 milliseconds"
+}
+```
+
+---
+
+## Health Check
+
+**/health** - Check if the API is running.
+
+```bash
+curl "https://opengate-8dyx.onrender.com/health"
+```
+
+---
+
+## Social Generations
+
+**/social/generate** - Generate fake social data.
+
+```bash
+# Generate a random email
+curl "https://opengate-8dyx.onrender.com/social/generate?type=email"
+
+# Generate 5 fake phone numbers
+curl "https://opengate-8dyx.onrender.com/social/generate?type=phone&count=5"
+```
+
+**Query Parameters:**
+- `?type=` (required) - Type to generate: `email`, `phone`, `name`, `username`
+- `&count=` (optional) - Number of items (max 100, default: 1)
+
+---
+
+## Text Utilities
+
+### /text/parse-entities
+Extracts entities (emails, phones, URLs, names, dates) from text.
+
+```bash
+curl -X POST "https://opengate-8dyx.onrender.com/text/parse-entities" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Contact us at hello@example.com or call +1 555 123 4567"}'
+```
+
+**Response:**
+```json
+{
+  "text": "Contact us at hello@example.com or call +1 555 123 4567",
+  "emails": ["hello@example.com"],
+  "phones": ["+1 555 123 4567"],
   "urls": [],
   "names": [],
   "dates": []
 }
 ```
 
-
+---
 
 ## Error Responses
 
 All errors return JSON with `error` and optional `details`:
 
-Common status codes:
-- `400` - Bad request (invalid URL, method, etc.)
-- `403` - Blocked domain (e.g., YouTube, Netflix)
+- `400` - Bad request (invalid URL, missing parameters)
+- `403` - Blocked domain
 - `429` - Rate limit exceeded
+- `500` - Internal server error
 - `502` - Failed to fetch target URL
+
+---
 
 ## Limitations
 
-- **YouTube is blocked** - Returns error "YouTube's homepage is not available through this proxy"
-- **Netflix and other streaming sites** are blocked due to DRM and complexity
-- **WebSockets** are not proxied...yet
-- **Streaming video** may have issues due to buffering and range requests
-- **Sites with strict CSP headers** may block proxied resources - fixing
+- **YouTube is blocked** - Returns error for YouTube URLs
+- **Netflix and streaming sites** are blocked due to DRM
+- **Rate limit** - 60 requests per minute per IP
 
-### Next Features: 
-
-- Better CSS handling
-- ✓ /yt-audio?url= (Convert a youtube video into .webm for playback
-- ✓ /timestamp (Returns current time in multiple formats
-- ✓ /ip (Returns users IP address
-- ✓ /location (Returns users location via IP address
-- ✓ /timezone (Returns users timezone
-- ✓ /slug?text= (Converts text to URL slugs
-- ✓ /scrape?url= (Returns headers, links, title
-- ✓ /ping?url= (Response time from site
-- ✓ /count-text?text= (Character, word, sentence count
-- ✓ /hex-to-colour?hex= (Hex to colour name
-- ✓ /sanitize?text= (Removes unsafe characters
-- ✓ /delay?ms= (Simulates API delay
-- /convert?from=mp4&to=mp3 (Convert file types)
-- /Ai?prompt=Hey (sends a request to an ai model and sends response
+---
 
 ## License
 
