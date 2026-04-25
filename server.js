@@ -1584,6 +1584,89 @@ app.get('/word', async (req, res) => {
   }
 });
 
+// GET /ai-text - Generate text using AI Horde (free distributed AI)
+app.get('/ai-text', async (req, res) => {
+  const { prompt } = req.query;
+  
+  if (!prompt) {
+    return res.status(400).json({ error: 'Missing prompt parameter' });
+  }
+  
+  const systemPrompt = 'You are a helpful AI assistant. Keep responses concise, accurate, and relevant. Answer directly without repeating yourself.';
+  
+  try {
+    const response = await fetch('https://aihorde.net/api/v2/generate/text/async', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '0000000000'
+      },
+      body: JSON.stringify({
+        prompt: `<|system|>\n${systemPrompt}\n<|user|>\n${prompt}\n<|assistant|>`,
+        params: {
+          model: 'meta-llama/llama-3-70b-instruct'
+        }
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({
+        error: 'AI Horde error',
+        details: errorText.substring(0, 200)
+      });
+    }
+    
+    const data = await response.json();
+    
+    if (!data.id) {
+      let text = data.generations?.[0]?.text || '';
+      // Clean up response
+      text = text.replace(/<\|.*$/g, '').trim();
+      return res.json({
+        prompt: prompt,
+        response: text
+      });
+    }
+    
+    // Poll for results
+    const jobId = data.id;
+    const maxWait = 60000;
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < maxWait) {
+      await new Promise(r => setTimeout(r, 3000));
+      
+      const statusResponse = await fetch(`https://aihorde.net/api/v2/generate/text/status/${jobId}`, {
+        headers: { 'apikey': '0000000000' }
+      });
+      
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        
+        if (statusData.done) {
+          let text = statusData.generations?.[0]?.text || '';
+          // Clean up response - remove any leftover special tokens
+          text = text.replace(/<\|.*$/g, '').trim();
+          return res.json({
+            prompt: prompt,
+            response: text,
+            id: jobId
+          });
+        }
+      }
+    }
+    
+    return res.status(202).json({
+      error: 'Generation timeout',
+      details: 'The AI took too long. Try again.',
+      id: jobId
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'AI request failed', details: error.message });
+  }
+});
+
 // Social data generation endpoint
 app.get('/social/generate', (req, res) => {
   const { type, count = 1 } = req.query;
