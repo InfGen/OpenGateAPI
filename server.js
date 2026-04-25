@@ -1584,47 +1584,84 @@ app.get('/word', async (req, res) => {
   }
 });
 
-// GET /ai-text - Generate text using local keyword-based generator (free, no API needed)
-app.get('/ai-text', (req, res) => {
-  const { prompt } = req.query;
+// GET /ai-text - Generate text using AI Horde (free distributed AI)
+app.get('/ai-text', async (req, res) => {
+  const { prompt, model = 'koboldcpp/Kobold-7B-v1.2' } = req.query;
   
   if (!prompt) {
     return res.status(400).json({ error: 'Missing prompt parameter' });
   }
   
-  const promptLower = prompt.toLowerCase();
-  
-  // Simple response templates based on keywords
-  let response = '';
-  
-  if (promptLower.includes('hello') || promptLower.includes('hi ')) {
-    response = 'Hello! How can I help you today?';
-  } else if (promptLower.includes('how are')) {
-    response = "I'm doing great, thanks for asking! I'm a simple text generator here to help. What can I do for you?";
-  } else if (promptLower.includes('what is') || promptLower.includes('what are')) {
-    const words = prompt.split(' ').slice(-3).join(' ');
-    response = `${words.charAt(0).toUpperCase() + words.slice(1)} is an interesting topic. Without access to real AI, I can only provide basic information. Would you like me to explain more about this subject?`;
-  } else if (promptLower.includes('who')) {
-    response = "That's an interesting question about someone. I don't have access to specific information about people, but I'd be happy to help with general knowledge topics!";
-  } else if (promptLower.includes('why')) {
-    response = "That's a thought-provoking question! There could be many reasons. Generally, understanding the 'why' behind things helps us learn and grow.";
-  } else if (promptLower.includes('help')) {
-    response = "I'd be happy to help! This API provides various utilities like URL fetching, text processing, random data generation, and more. Just let me know what you need!";
-  } else if (promptLower.includes('joke')) {
-    response = "Why don't scientists trust atoms? Because they make up everything! 😄";
-  } else if (promptLower.includes('name')) {
-    response = "I'm the OpenGate API text generator! I'm here to assist you with various API tasks. What would you like to explore?";
-  } else if (promptLower.length < 20) {
-    response = `You said: "${prompt}". That's interesting! Feel free to ask me questions or request help with various tasks.`;
-  } else {
-    response = `Based on your prompt "${prompt}", I understand you're looking for information or assistance. As a simple text generator without AI backend, I can help with basic responses. For complex AI tasks, you might want to explore dedicated AI services. How else can I help you today?`;
+  try {
+    // AI Horde text generation endpoint
+    const response = await fetch('https://aihorde.net/api/v2/text/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '0000000000' // Anonymous API key
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        models: [model]
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({
+        error: 'AI Horde error',
+        details: errorText.substring(0, 200)
+      });
+    }
+    
+    const data = await response.json();
+    
+    // Check if generation is still in progress
+    if (data.id) {
+      // Poll for results
+      const jobId = data.id;
+      const maxWait = 60000; // 60 seconds max
+      const startTime = Date.now();
+      
+      while (Date.now() - startTime < maxWait) {
+        await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds between checks
+        
+        const statusResponse = await fetch(`https://aihorde.net/api/v2/text/status/${jobId}`, {
+          headers: { 'apikey': '0000000000' }
+        });
+        
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          
+          if (statusData.done) {
+            const generatedText = statusData.generations?.[0]?.text || '';
+            return res.json({
+              prompt: prompt,
+              response: generatedText,
+              model: model,
+              id: jobId
+            });
+          }
+        }
+      }
+      
+      return res.status(202).json({
+        error: 'Generation timeout',
+        details: 'The AI generation took too long. Please try again.',
+        id: jobId
+      });
+    }
+    
+    const generatedText = data.generations?.[0]?.text || '';
+    
+    res.json({
+      prompt: prompt,
+      response: generatedText,
+      model: model
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'AI request failed', details: error.message });
   }
-  
-  res.json({
-    prompt: prompt,
-    response: response,
-    note: 'This is a simple keyword-based response. For real AI responses, consider using dedicated AI services.'
-  });
 });
 
 // Social data generation endpoint
