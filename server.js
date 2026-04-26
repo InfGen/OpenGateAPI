@@ -1066,47 +1066,6 @@ app.get('/timestamp', (req, res) => {
   });
 });
 
-// GET /ip - Returns user's IP address
-app.get('/ip', (req, res) => {
-  const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
-  res.json({ ip: ip });
-});
-
-// GET /location - Returns user's location via IP address
-app.get('/location', async (req, res) => {
-  const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
-  
-  // Skip private IPs
-  if (ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.') || ip === '::1' || ip === '::ffff:127.0.0.1') {
-    return res.json({
-      ip: ip,
-      error: 'Cannot determine location for private/local IP'
-    });
-  }
-
-  try {
-    const response = await fetch(`http://ip-api.com/json/${ip}`);
-    const data = await response.json();
-    if (data.status === 'success') {
-      res.json({
-        ip: ip,
-        country: data.country,
-        countryCode: data.countryCode,
-        region: data.regionName,
-        city: data.city,
-        zip: data.zip,
-        latitude: data.lat,
-        longitude: data.lon,
-        timezone: data.timezone
-      });
-    } else {
-      res.json({ ip: ip, error: 'Could not determine location' });
-    }
-  } catch (error) {
-    res.json({ ip: ip, error: 'Location lookup failed' });
-  }
-});
-
 // GET /timezone - Returns user's timezone
 app.get('/timezone', (req, res) => {
   const now = new Date();
@@ -1584,118 +1543,34 @@ app.get('/word', async (req, res) => {
   }
 });
 
-// GET /ai-text - Generate text using AI Horde (free distributed AI)
+// GET /ai-text - Generate text using Pollinations AI
 app.get('/ai-text', async (req, res) => {
-  const { prompt } = req.query;
+  const { prompt, model = 'openai' } = req.query;
   
   if (!prompt) {
     return res.status(400).json({ error: 'Missing prompt parameter' });
   }
   
-  // Detect garbage responses
-  function isGarbage(text) {
-    if (!text || text.length < 10) return true;
-    if (text.includes('1024x8')) return true;
-    if (text.includes('----')) return true;
-    if (/^[\|\-\s\d"x]+$/.test(text)) return true;
-    if (text.includes('====') && text.includes('----')) return true;
-    if ((text.match(/---/g) || []).length > 5) return true;
-    return false;
-  }
-  
-  // Clean up response
-  function cleanResponse(text) {
-    if (!text) return '';
-    // Split at problematic patterns
-    let cleaned = text.split('---')[0];
-    cleaned = cleaned.split('====')[0];
-    cleaned = cleaned.split('<|')[0];
-    cleaned = cleaned.trim();
-    return cleaned;
-  }
-  
-  async function generateWithRetry(maxRetries = 3) {
-    const models = ['meta-llama/llama-3-70b-instruct', 'mixtral-8x7b-instruct', ' Nous-Hermes-2-Mistral-7B-DPO'];
-    
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const model = models[attempt % models.length];
-      
-      const response = await fetch('https://aihorde.net/api/v2/generate/text/async', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': '0000000000'
-        },
-        body: JSON.stringify({
-          prompt: `You are a helpful AI assistant. Give clear, normal responses.\nUser: ${prompt}\nAssistant:`,
-          params: {
-            model: model,
-            max_length: 150,
-            temperature: 0.7
-          }
-        })
-      });
-      
-      if (!response.ok) continue;
-      
-      const data = await response.json();
-      
-      // Poll for results
-      if (data.id) {
-        const jobId = data.id;
-        const maxWait = 60000;
-        const startTime = Date.now();
-        
-        while (Date.now() - startTime < maxWait) {
-          await new Promise(r => setTimeout(r, 3000));
-          
-          const statusResponse = await fetch(`https://aihorde.net/api/v2/generate/text/status/${jobId}`, {
-            headers: { 'apikey': '0000000000' }
-          });
-          
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            
-            if (statusData.done) {
-              const text = statusData.generations?.[0]?.text || '';
-              const cleaned = cleanResponse(text);
-              
-              if (!isGarbage(cleaned)) {
-                return cleaned;
-              }
-              console.log(`[AI] Garbage detected on attempt ${attempt + 1}, retrying...`);
-            }
-          }
-        }
-      } else {
-        const text = data.generations?.[0]?.text || '';
-        const cleaned = cleanResponse(text);
-        if (!isGarbage(cleaned)) {
-          return cleaned;
-        }
-      }
-    }
-    
-    return null;
-  }
-  
   try {
-    const result = await generateWithRetry(3);
-    
-    if (result) {
-      res.json({
-        prompt: prompt,
-        response: result
-      });
-    } else {
-      res.status(500).json({
-        error: 'AI generation failed',
-        details: 'All workers returned garbage. Try again later.'
-      });
-    }
+    const url = `https://gen.pollinations.ai/text/${encodeURIComponent(prompt)}?model=${model}`;
+    const response = await fetch(url);
+    const text = await response.text();
+    res.json({ prompt: prompt, response: text.trim(), model: model });
   } catch (error) {
     res.status(500).json({ error: 'AI request failed', details: error.message });
   }
+});
+
+// GET /models - List available AI models
+app.get('/models', (req, res) => {
+  res.json({
+    models: [
+      { id: 'openai', name: 'OpenAI', description: 'Fast and reliable GPT-style responses' },
+      { id: 'gemini-fast', name: 'Gemini Fast', description: 'Quick Google Gemini responses' },
+      { id: 'deepseek', name: 'DeepSeek', description: 'DeepSeek language model' },
+      { id: 'claude-fast', name: 'Claude Fast', description: 'Fast Anthropic Claude responses' }
+    ]
+  });
 });
 
 // Social data generation endpoint
