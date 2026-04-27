@@ -1742,7 +1742,7 @@ app.get('/ai-summarize', async (req, res) => {
     
     const prompt = `Summarize the following text concisely:\n\n"${content}"\n\nSummary:`;
     const encodedPrompt = encodeURIComponent(prompt);
-    const response = await fetch(`https://gen.pollinations.ai/text/${encodedPrompt}?model=openai`);
+    const response = await fetch(`https://gen.pollinations.ai/text/${encodedPrompt}`);
     const summary = await response.text();
     res.json({ original: content, summary: summary.trim() });
   } catch (error) {
@@ -1901,7 +1901,8 @@ app.get('/', (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CORS Proxy API Tester</title>
+  <title>OpenGate API</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1254 1254'><circle cx='627' cy='627' r='626' fill='%232570f2'/><text x='627' y='959' text-anchor='middle' font-family='Arial' font-size='142' font-weight='700' fill='white'>OG</text></svg>">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
