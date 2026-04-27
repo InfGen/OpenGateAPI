@@ -1921,31 +1921,23 @@ app.get('/yt-audio', async (req, res) => {
   }
   
   try {
-    const ytdl = require('@distube/ytdl-core');
+    const playdl = require('play-dl');
     
-    // Validate YouTube URL
-    if (!ytdl.validateURL(url)) {
-      return res.status(400).json({ error: 'Invalid YouTube URL' });
-    }
-    
-    // Get video info
-    const info = await ytdl.getInfo(url);
-    const title = info.videoDetails.title.replace(/[^\w\s-]/g, '');
-    
-    // Set headers for streaming
-    const ext = format === 'mp3' ? 'mp3' : 'webm';
-    res.setHeader('Content-Disposition', `attachment; filename="${title}.${ext}"`);
-    res.setHeader('Content-Type', format === 'mp3' ? 'audio/mpeg' : 'audio/webm');
-    
-    // Stream the audio - use highestaudio quality
-    const stream = ytdl(url, {
-      filter: (fmt) => fmt.audioCodec && (format === 'mp3' ? fmt.container === 'mp3' : fmt.container === 'webm'),
-      quality: 'highestaudio'
+    // Get stream info
+    const streamInfo = await playdl.stream(url, {
+      filter: 'audioonly',
+      quality: 'highest'
     });
     
-    stream.pipe(res);
+    // Set headers
+    res.setHeader('Content-Type', 'audio/webm');
+    res.setHeader('Accept-Ranges', 'none');
+    res.setHeader('Content-Length', streamInfo.size);
     
-    stream.on('error', (err) => {
+    // Pipe the stream
+    streamInfo.stream.pipe(res);
+    
+    streamInfo.stream.on('error', (err) => {
       console.error('YouTube audio stream error:', err);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Failed to stream audio' });
