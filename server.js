@@ -1573,6 +1573,67 @@ app.get('/models', (req, res) => {
   });
 });
 
+// GET /ai-image - Generate AI images using Pollinations
+app.get('/ai-image', async (req, res) => {
+  const { prompt, width = 1024, height = 1024, model = 'flux', safe = 'true', enhance = 'false', seed = '-1' } = req.query;
+  
+  if (!prompt) {
+    return res.status(400).json({ error: 'Missing prompt parameter' });
+  }
+  
+  try {
+    const safeMode = safe === 'true' || safe === '1';
+    const enhanced = enhance === 'true' || enhance === '1';
+    
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&model=${model}&safe=${safeMode}&enhance=${enhanced}&seed=${seed}`;
+    
+    res.json({
+      prompt: prompt,
+      image_url: url,
+      width: parseInt(width),
+      height: parseInt(height),
+      model: model,
+      safe_mode: safeMode,
+      enhanced: enhanced,
+      seed: parseInt(seed)
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Image generation failed', details: error.message });
+  }
+});
+
+// GET /ai-image-info - Get info about AI image generation
+app.get('/ai-image-info', (req, res) => {
+  res.json({
+    endpoint: '/ai-image',
+    description: 'Generate AI images using Pollinations',
+    parameters: {
+      prompt: { type: 'string', required: true, description: 'The image description' },
+      width: { type: 'number', default: 1024, description: 'Image width (e.g., 512, 1024, 1536)' },
+      height: { type: 'number', default: 1024, description: 'Image height (e.g., 512, 1024, 1536)' },
+      model: { type: 'string', default: 'flux', description: 'AI model to use' },
+      safe: { type: 'boolean', default: true, description: 'NSFW filter (true/false)' },
+      enhance: { type: 'boolean', default: false, description: 'AI prompt rewrite (true/false)' },
+      seed: { type: 'number', default: -1, description: 'Random seed (-1 for random)' }
+    },
+    models: [
+      { id: 'flux', name: 'Flux', description: 'Default high-quality model' },
+      { id: 'zimage', name: 'Zimage', description: 'Zoe AI model' },
+      { id: 'gptimage', name: 'GPTImage', description: 'OpenAI image model' },
+      { id: 'klein', name: 'Klein', description: 'Alternative model' },
+      { id: 'image-4', name: 'Image 4', description: 'Latest image model' },
+      { id: 'frok-imagine', name: 'Frok Imagine', description: 'Creative model' },
+      { id: 'nanobanana', name: 'Nanobanana', description: 'Unique stylized model' },
+      { id: 'seedream', name: 'Seedream', description: 'Dream-like images' }
+    ],
+    examples: [
+      'GET /ai-image?prompt=a%20beautiful%20sunset',
+      'GET /ai-image?prompt=cute%20cat&width=512&height=512&model=flux',
+      'GET /ai-image?prompt=space%20ship&safe=false&enhance=true'
+    ]
+  });
+});
+
 // Social data generation endpoint
 app.get('/social/generate', (req, res) => {
   const { type, count = 1 } = req.query;
