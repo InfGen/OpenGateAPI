@@ -1894,369 +1894,233 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Test interface - interactive API tester
+// Professional test interface
 app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OpenGate API</title>
+  <title>OpenGate API - Free AI & Proxy API</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1254 1254'><circle cx='627' cy='627' r='626' fill='%232570f2'/><text x='627' y='959' text-anchor='middle' font-family='Arial' font-size='142' font-weight='700' fill='white'>OG</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0d1117;
-      color: #c9d1d9;
-      padding: 40px 20px;
-      max-width: 900px;
-      margin: 0 auto;
-      line-height: 1.6;
-    }
-    h1 { color: #58a6ff; margin-bottom: 10px; }
-    .subtitle { color: #8b949e; margin-bottom: 30px; }
-    .section {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-    .section h2 {
-      color: #58a6ff;
-      font-size: 18px;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    label { display: block; margin-bottom: 5px; color: #8b949e; font-size: 14px; }
-    input, select, textarea {
-      width: 100%;
-      padding: 10px 12px;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      color: #c9d1d9;
-      font-size: 14px;
-      margin-bottom: 12px;
-    }
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: #58a6ff;
-    }
-    button {
-      background: #238636;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-    }
-    button:hover { background: #2ea043; }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .row { display: flex; gap: 12px; }
-    .row > * { flex: 1; }
-    .checkbox { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-    .checkbox input { width: auto; margin: 0; }
-    .result {
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 15px;
-      margin-top: 15px;
-      min-height: 100px;
-      max-height: 400px;
-      overflow: auto;
-      font-family: 'Monaco', 'Consolas', monospace;
-      font-size: 13px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .error { color: #f85149; }
-    .success { color: #3fb950; }
-    .info { color: #8b949e; font-size: 13px; margin-top: 8px; }
-    .method-get { color: #3fb950; }
-    .method-post { color: #f0883e; }
-    .endpoints {
-      display: grid;
-      gap: 10px;
-    }
-    .endpoint {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px;
-      background: #0d1117;
-      border-radius: 6px;
-      font-family: monospace;
-      font-size: 13px;
-    }
-    .method {
-      background: #238636;
-      color: white;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-    .method.post { background: #f0883e; }
-    .hidden { display: none; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;background:#09090b;color:#fff;min-height:100vh}
+    .container{max-width:1200px;margin:0 auto;padding:40px 24px}
+    .header{text-align:center;margin-bottom:48px}
+    .logo{width:80px;height:80px;background:#2570f2;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;margin-bottom:24px}
+    h1{font-size:36px;font-weight:700;margin-bottom:12px;background:linear-gradient(135deg,#fff 0%,#a1a1aa 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .subtitle{color:#71717a;font-size:18px;max-width:600px;margin:0 auto}
+    .badge{display:inline-block;background:rgba(34,197,94,0.2);color:#22c55e;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:500;margin-bottom:24px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:24px}
+    .card{background:#18181b;border:1px solid #27272a;border-radius:16px;padding:24px}
+    .card-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+    .card-icon{width:40px;height:40px;background:rgba(37,112,242,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+    .card-title{font-size:18px;font-weight:600}
+    .card-desc{color:#71717a;font-size:14px;margin-bottom:16px}
+    .input-group{margin-bottom:16px}
+    label{display:block;font-size:13px;font-weight:500;color:#a1a1aa;margin-bottom:6px}
+    input,textarea{width:100%;padding:12px 14px;background:#09090b;border:1px solid #27272a;border-radius:10px;color:#fff;font-size:14px;transition:all 0.2s}
+    input:focus,textarea:focus{outline:none;border-color:#2570f2;box-shadow:0 0 0 3px rgba(37,112,242,0.2)}
+    textarea{resize:vertical;min-height:80px;font-family:'SF Mono',Monaco,monospace}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:#2570f2;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s}
+    .btn:hover{background:#1d4ed8}
+    .result{margin-top:16px;padding:16px;background:#09090b;border-radius:10px;font-family:'SF Mono',Monaco,monospace;font-size:13px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;display:none}
+    .result.show{display:block}
+    .result.error{border:1px solid #ef4444;color:#fca5a5}
+    .result.success{border:1px solid #22c55e;color:#86efac}
+    .quick-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    .quick-link{padding:8px 12px;background:#27272a;border-radius:6px;font-size:12px;color:#a1a1aa;text-decoration:none;transition:all 0.2s}
+    .quick-link:hover{background:#3f3f46;color:#fff}
+    .footer{text-align:center;margin-top:64px;padding-top:32px;border-top:1px solid #27272a;color:#52525b;font-size:14px}
+    .footer a{color:#2570f2;text-decoration:none}
+    .footer a:hover{text-decoration:underline}
+    @media(max-width:640px){.grid{grid-template-columns:1fr}.container{padding:24px 16px}}
   </style>
 </head>
 <body>
-  <h1>CORS Proxy API</h1>
-  <p class="subtitle">Test your proxy requests below. All URLs are allowed (except localhost/private IPs).</p>
-  <p class="subtitle" style="font-size: 12px; margin-top: -20px; opacity: 0.8;">
-    Note: YouTube, Netflix and other streaming sites are blocked. Complex JavaScript apps may not work perfectly.
-  </p>
-
-  <div class="section">
-    <h2>Endpoints</h2>
-    <div class="endpoints">
-      <div class="endpoint">
-        <span class="method">GET</span>
-        <span>/fetch?url=&lt;url&gt;&rewrite=true</span>
+  <div class="container">
+    <header class="header">
+      <div class="logo">OG</div>
+      <span class="badge">100% Free & No API Key Required</span>
+      <h1>OpenGate API</h1>
+      <p class="subtitle">A powerful free API for proxying requests, AI text & image generation, and useful utilities.</p>
+    </header>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">🌐</div>
+          <div>
+            <div class="card-title">Fetch Proxy</div>
+            <div class="card-desc">Bypass CORS and fetch any URL</div>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>URL</label>
+          <input type="text" id="fetchUrl" placeholder="https://api.github.com/users">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <input type="checkbox" id="fetchRewrite"> <label style="margin:0;font-size:13px;">Rewrite HTML</label>
+        </div>
+        <button class="btn" onclick="doFetch()">Send Request</button>
+        <div id="fetchResult" class="result"></div>
       </div>
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <span>/fetch</span>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">🤖</div>
+          <div>
+            <div class="card-title">AI Text</div>
+            <div class="card-desc">Generate text with free AI</div>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Prompt</label>
+          <input type="text" id="aiPrompt" placeholder="Write a haiku about coding">
+        </div>
+        <button class="btn" onclick="doAiText()">Generate</button>
+        <div id="aiResult" class="result"></div>
       </div>
-      <div class="endpoint">
-        <span class="method">GET</span>
-        <span>/screenshot?url=&lt;url&gt;&width=1920&height=1080</span>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">🎨</div>
+          <div>
+            <div class="card-title">AI Image</div>
+            <div class="card-desc">Generate images with AI</div>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Prompt</label>
+          <input type="text" id="imgPrompt" placeholder="A serene mountain landscape">
+        </div>
+        <button class="btn" onclick="doAiImage()">Generate Image</button>
+        <div id="imgResult" class="result"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">✨</div>
+          <div>
+            <div class="card-title">AI Rewrite</div>
+            <div class="card-desc">Rewrite text with different tones</div>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Text to Rewrite</label>
+          <textarea id="rewriteText" placeholder="Enter your text..."></textarea>
+        </div>
+        <div class="input-group">
+          <label>Tone</label>
+          <input type="text" id="rewriteTone" value="casual">
+        </div>
+        <button class="btn" onclick="doRewrite()">Rewrite</button>
+        <div id="rewriteResult" class="result"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">📝</div>
+          <div>
+            <div class="card-title">Summarize</div>
+            <div class="card-desc">Summarize with AI</div>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>URL or Text</label>
+          <textarea id="summarizeInput" placeholder="https://example.com or enter text..."></textarea>
+        </div>
+        <button class="btn" onclick="doSummarize()">Summarize</button>
+        <div id="summarizeResult" class="result"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">🔗</div>
+          <div>
+            <div class="card-title">Utilities</div>
+            <div class="card-desc">Random data & text tools</div>
+          </div>
+        </div>
+        <div class="quick-links">
+          <a href="/social/generate?type=name" class="quick-link" target="_blank">Name</a>
+          <a href="/social/generate?type=email" class="quick-link" target="_blank">Email</a>
+          <a href="/social/generate?type=phone" class="quick-link" target="_blank">Phone</a>
+          <a href="/uuid" class="quick-link" target="_blank">UUID</a>
+          <a href="/base64?text=hello" class="quick-link" target="_blank">Base64</a>
+          <a href="/hash?text=hello" class="quick-link" target="_blank">Hash</a>
+          <a href="/slug?text=Hello World" class="quick-link" target="_blank">Slug</a>
+          <a href="/joke" class="quick-link" target="_blank">Joke</a>
+          <a href="/word?text=hello" class="quick-link" target="_blank">Dictionary</a>
+          <a href="/favicon?url=https://google.com" class="quick-link" target="_blank">Favicon</a>
+        </div>
       </div>
     </div>
+    <footer class="footer">
+      <p>OpenGate API • 100% Free, No API Key</p>
+      <p style="margin-top:8px;">
+        <a href="/health">Health</a> • 
+        <a href="/models">AI Models</a> • 
+        <a href="/ai-image-info">Image Models</a>
+      </p>
+    </footer>
   </div>
-
-  <div class="section">
-    <h2>Simple GET Test</h2>
-    <label>Target URL</label>
-    <input type="text" id="getUrl" placeholder="https://api.github.com/users/github" value="https://httpbin.org/get">
-    <div class="checkbox">
-      <input type="checkbox" id="getRewrite">
-      <label for="getRewrite" style="margin:0">Rewrite HTML (proxies src/href through this API)</label>
-    </div>
-    <button onclick="testGet()">Send GET Request</button>
-    <div id="getResult" class="result hidden"></div>
-  </div>
-
-  <div class="section">
-    <h2>Advanced POST Test</h2>
-    <div class="row">
-      <div>
-        <label>Target URL</label>
-        <input type="text" id="postUrl" placeholder="https://httpbin.org/post" value="https://httpbin.org/post">
-      </div>
-      <div>
-        <label>Method</label>
-        <select id="postMethod">
-          <option>POST</option>
-          <option>PUT</option>
-          <option>PATCH</option>
-          <option>DELETE</option>
-        </select>
-      </div>
-    </div>
-    <label>Custom Headers (JSON)</label>
-    <input type="text" id="postHeaders" placeholder='{"Content-Type": "application/json"}' value='{"Content-Type": "application/json"}'>
-    <label>Request Body</label>
-    <textarea id="postBody" rows="4" placeholder='{"test": "data"}'>{"test": "data", "timestamp": "2024-01-01"}</textarea>
-    <button onclick="testPost()">Send Request</button>
-    <div id="postResult" class="result hidden"></div>
-  </div>
-
-  <div class="section">
-    <h2>CORS Test (Direct vs Proxy)</h2>
-    <label>URL to test CORS (try fetching directly)</label>
-    <input type="text" id="corsUrl" placeholder="https://api.github.com/users/github" value="https://httpbin.org/get">
-    <button onclick="testCors()">Compare Direct vs Proxy</button>
-    <div id="corsResult" class="result hidden"></div>
-  </div>
-
-  <div class="section">
-    <h2>Screenshot Test</h2>
-    <label>URL to Screenshot</label>
-    <input type="text" id="screenshotUrl" placeholder="https://example.com" value="https://httpbin.org/html">
-    <div class="row">
-      <div>
-        <label>Width (px)</label>
-        <input type="number" id="screenshotWidth" value="1920" min="320" max="3840">
-      </div>
-      <div>
-        <label>Height (px)</label>
-        <input type="number" id="screenshotHeight" value="1080" min="240" max="2160">
-      </div>
-    </div>
-    <div class="checkbox">
-      <input type="checkbox" id="screenshotFullPage">
-      <label for="screenshotFullPage" style="margin:0">Full page screenshot (ignores height)</label>
-    </div>
-    <button onclick="testScreenshot()">Take Screenshot</button>
-    <div id="screenshotResult" class="result hidden"></div>
-  </div>
-
   <script>
-    const API_BASE = window.location.origin;
-
-    async function testGet() {
-      const url = document.getElementById('getUrl').value;
-      const rewrite = document.getElementById('getRewrite').checked;
-      const result = document.getElementById('getResult');
-      
-      if (!url) { result.textContent = 'Please enter a URL'; result.className = 'result error'; return; }
-      
-      result.classList.remove('hidden');
-      result.textContent = 'Loading...';
-      
-      try {
-        const proxyUrl = \`/fetch?url=\${encodeURIComponent(url)}\${rewrite ? '&rewrite=true' : ''}\`;
-        const start = Date.now();
-        const response = await fetch(proxyUrl);
-        const duration = Date.now() - start;
-        
-        const contentType = response.headers.get('content-type');
-        let data;
-        
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          data = await response.text();
-        }
-        
-        result.innerHTML = \`<span class="success">✓ Success (\${duration}ms)</span>\n\nStatus: \${response.status}\nContent-Type: \${contentType || 'unknown'}\n\n\${typeof data === 'string' ? data.substring(0, 5000) : JSON.stringify(data, null, 2)}\`;
-        result.className = 'result success';
-      } catch (err) {
-        result.innerHTML = \`<span class="error">✗ Error</span>\n\n\${err.message}\`;
-        result.className = 'result error';
-      }
+    const BASE = window.location.origin;
+    function show(id, html, err) {
+      const el = document.getElementById(id);
+      el.innerHTML = html;
+      el.className = 'result show ' + (err ? 'error' : 'success');
     }
-
-    async function testPost() {
-      const url = document.getElementById('postUrl').value;
-      const method = document.getElementById('postMethod').value;
-      const headersStr = document.getElementById('postHeaders').value;
-      const body = document.getElementById('postBody').value;
-      const result = document.getElementById('postResult');
-      
-      if (!url) { result.textContent = 'Please enter a URL'; result.className = 'result error'; return; }
-      
-      result.classList.remove('hidden');
-      result.textContent = 'Loading...';
-      
+    async function doFetch() {
+      const url = document.getElementById('fetchUrl').value;
+      if (!url) return show('fetchResult', 'Enter a URL', true);
+      show('fetchResult', 'Loading...');
       try {
-        let headers = {};
-        if (headersStr) {
-          headers = JSON.parse(headersStr);
-        }
-        
-        const start = Date.now();
-        const response = await fetch(\`/fetch\`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, method, headers, body })
-        });
-        const duration = Date.now() - start;
-        
-        const data = await response.json();
-        result.innerHTML = \`<span class="success">✓ Success (\${duration}ms)</span>\n\nStatus: \${response.status}\n\n\${JSON.stringify(data, null, 2)}\`;
-        result.className = 'result success';
-      } catch (err) {
-        result.innerHTML = \`<span class="error">✗ Error</span>\n\n\${err.message}\`;
-        result.className = 'result error';
-      }
+        const u = BASE + '/fetch?url=' + encodeURIComponent(url) + (document.getElementById('fetchRewrite').checked ? '&rewrite=true' : '');
+        const r = await fetch(u);
+        const t = await r.text();
+        show('fetchResult', 'Status: ' + r.status + '\n\n' + t.substring(0, 1500));
+      } catch (e) { show('fetchResult', 'Error: ' + e.message, true); }
     }
-
-    async function testCors() {
-      const url = document.getElementById('corsUrl').value;
-      const result = document.getElementById('corsResult');
-      
-      result.classList.remove('hidden');
-      result.innerHTML = 'Testing direct fetch (may fail due to CORS)...';
-      
-      let directResult = '';
+    async function doAiText() {
+      const p = document.getElementById('aiPrompt').value;
+      if (!p) return show('aiResult', 'Enter a prompt', true);
+      show('aiResult', 'Generating...');
       try {
-        const start = Date.now();
-        await fetch(url);
-        directResult = \`<span class="success">Direct: Success (unexpected - no CORS!)</span>\`;
-      } catch (err) {
-        directResult = \`<span class="error">Direct: CORS Error (expected)</span>\n\${err.message}\`;
-      }
-      
-      result.innerHTML = directResult + '\n\nTesting via proxy...';
-      
-      try {
-        const start = Date.now();
-        const proxyResponse = await fetch(\`/fetch?url=\${encodeURIComponent(url)}\`);
-        const data = await proxyResponse.json();
-        const duration = Date.now() - start;
-        
-        result.innerHTML = directResult + \`
-\n\n<span class="success">Proxy: Success (\${duration}ms)</span>
-\nStatus: \${proxyResponse.status}
-\n\${JSON.stringify(data, null, 2).substring(0, 2000)}\`;
-      } catch (err) {
-        result.innerHTML = directResult + \`
-\n\n<span class="error">Proxy: Error</span>
-\n\${err.message}\`;
-      }
+        const r = await fetch(BASE + '/ai-text?prompt=' + encodeURIComponent(p));
+        const j = await r.json();
+        show('aiResult', j.response || JSON.stringify(j));
+      } catch (e) { show('aiResult', 'Error: ' + e.message, true); }
     }
-
-    async function testScreenshot() {
-      const url = document.getElementById('screenshotUrl').value;
-      const width = document.getElementById('screenshotWidth').value;
-      const height = document.getElementById('screenshotHeight').value;
-      const fullPage = document.getElementById('screenshotFullPage').checked;
-      const result = document.getElementById('screenshotResult');
-      
-      if (!url) { result.textContent = 'Please enter a URL'; result.className = 'result error'; return; }
-      
-      result.classList.remove('hidden');
-      result.innerHTML = '<span class="info"> Taking screenshot with Puppeteer... (may take 5-10 seconds)</span>';
-      
+    function doAiImage() {
+      const p = document.getElementById('imgPrompt').value;
+      if (!p) return show('imgResult', 'Enter a prompt', true);
+      window.open(BASE + '/ai-image?prompt=' + encodeURIComponent(p), '_blank');
+      show('imgResult', 'Opened in new tab');
+    }
+    async function doRewrite() {
+      const t = document.getElementById('rewriteText').value;
+      const tone = document.getElementById('rewriteTone').value || 'casual';
+      if (!t) return show('rewriteResult', 'Enter text', true);
+      show('rewriteResult', 'Rewriting...');
       try {
-        const params = new URLSearchParams({
-          url: url,
-          width: width,
-          height: height,
-          fullPage: fullPage
-        });
-        
-        const start = Date.now();
-        const response = await fetch(\`/screenshot?\${params.toString()}\`);
-        const duration = Date.now() - start;
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          result.innerHTML = \`<span class="error"> Screenshot Failed (\${duration}ms)</span>
-\n\nStatus: \${response.status}
-\nError: \${errorData.error}
-\n\${errorData.details || ''}\`;
-          result.className = 'result error';
-          return;
-        }
-        
-        const blob = await response.blob();
-        const imageUrl = URL.createObjectURL(blob);
-        
-        result.innerHTML = \`<span class="success"> Screenshot Complete (\${duration}ms)</span>
-\n\nSize: \${(blob.size / 1024).toFixed(1)} KB
-\nDimensions: \${width}x\${height}\${fullPage ? ' (Full Page)' : ''}
-\n\n<img src="\${imageUrl}" style="max-width: 100%; border: 1px solid #30363d; border-radius: 4px; margin-top: 10px;" alt="Screenshot">\`;
-        result.className = 'result success';
-      } catch (err) {
-        result.innerHTML = \`<span class="error"> Error</span>
-\n\n\${err.message}\`;
-        result.className = 'result error';
-      }
+        const r = await fetch(BASE + '/ai-rewrite?text=' + encodeURIComponent(t) + '&tone=' + encodeURIComponent(tone));
+        const j = await r.json();
+        show('rewriteResult', j.rewritten || JSON.stringify(j));
+      } catch (e) { show('rewriteResult', 'Error: ' + e.message, true); }
+    }
+    async function doSummarize() {
+      const input = document.getElementById('summarizeInput').value;
+      if (!input) return show('summarizeResult', 'Enter URL or text', true);
+      const isUrl = input.startsWith('http');
+      const params = isUrl ? 'url=' + encodeURIComponent(input) : 'text=' + encodeURIComponent(input);
+      show('summarizeResult', 'Summarizing...');
+      try {
+        const r = await fetch(BASE + '/ai-summarize?' + params);
+        const j = await r.json();
+        show('summarizeResult', j.summary || JSON.stringify(j));
+      } catch (e) { show('summarizeResult', 'Error: ' + e.message, true); }
     }
   </script>
 </body>
-</html>
-`);
+</html>`);
 });
 
 // 404 handler
