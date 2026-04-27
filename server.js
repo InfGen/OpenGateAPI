@@ -1677,6 +1677,114 @@ app.get('/ai-image-info', (req, res) => {
   });
 });
 
+// GET /ai-rewrite - Rewrite text with different tone
+app.get('/ai-rewrite', async (req, res) => {
+  const { text, tone = 'professional' } = req.query;
+  
+  if (!text) {
+    return res.status(400).json({ error: 'Missing text parameter' });
+  }
+  
+  try {
+    const prompt = `Rewrite the following text in a ${tone} tone:\n\n"${text}"\n\nRewritten text:`;
+    const encodedPrompt = encodeURIComponent(prompt);
+    const response = await fetch(`https://gen.pollinations.ai/text/${encodedPrompt}?model=openai`);
+    const rewritten = await response.text();
+    res.json({ original: text, tone: tone, rewritten: rewritten.trim() });
+  } catch (error) {
+    res.status(500).json({ error: 'AI rewrite failed', details: error.message });
+  }
+});
+
+// GET /ai-rewrite-tones - List available tone options
+app.get('/ai-rewrite-tones', (req, res) => {
+  res.json({
+    tones: [
+      { id: 'professional', name: 'Professional', description: 'Formal and business-like' },
+      { id: 'casual', name: 'Casual', description: 'Relaxed and conversational' },
+      { id: 'friendly', name: 'Friendly', description: 'Warm and approachable' },
+      { id: 'formal', name: 'Formal', description: 'Very official and structured' },
+      { id: 'humorous', name: 'Humorous', description: 'Funny and lighthearted' },
+      { id: 'empathetic', name: 'Empathetic', description: 'Understanding and compassionate' },
+      { id: 'persuasive', name: 'Persuasive', description: 'Convincing and compelling' },
+      { id: 'simple', name: 'Simple', description: 'Easy to understand' },
+      { id: 'academic', name: 'Academic', description: 'Scholarly and detailed' }
+    ],
+    custom: 'You can also use any custom tone description'
+  });
+});
+
+// GET /ai-summarize - Summarize text or URL
+app.get('/ai-summarize', async (req, res) => {
+  const { text, url } = req.query;
+  
+  if (!text && !url) {
+    return res.status(400).json({ error: 'Missing text or url parameter' });
+  }
+  
+  try {
+    let content = text;
+    
+    if (url) {
+      const validation = validateUrl(url);
+      if (validation.valid === false) {
+        return res.status(403).json({ error: validation.error });
+      }
+      const response = await fetch(validation.href, {
+        headers: { 'User-Agent': BROWSER_USER_AGENT }
+      });
+      const html = await response.text();
+      // Extract readable text
+      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      const descMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/i);
+      content = `${titleMatch?.[1] || ''}\n\n${descMatch?.[1] || ''}`;
+    }
+    
+    const prompt = `Summarize the following text concisely:\n\n"${content}"\n\nSummary:`;
+    const encodedPrompt = encodeURIComponent(prompt);
+    const response = await fetch(`https://gen.pollinations.ai/text/${encodedPrompt}?model=openai`);
+    const summary = await response.text();
+    res.json({ original: content, summary: summary.trim() });
+  } catch (error) {
+    res.status(500).json({ error: 'AI summarize failed', details: error.message });
+  }
+});
+
+// GET /favicon - Get favicon URL for a website
+app.get('/favicon', async (req, res) => {
+  const { url } = req.query;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'Missing url parameter' });
+  }
+  
+  try {
+    const targetUrl = new URL(url);
+    const domain = targetUrl.origin;
+    
+    // Common favicon paths to try
+    const faviconPaths = [
+      `/favicon.ico`,
+      `/apple-touch-icon.png`,
+      `/apple-touch-icon-precomposed.png`,
+      `/assets/favicon.ico`,
+      `/favicon.svg`
+    ];
+    
+    // Try to get favicon from Google favicon service (most reliable)
+    const googleFavicon = `https://www.google.com/s2/favicons?domain=${targetUrl.hostname}&sz=128`;
+    
+    res.json({
+      url: url,
+      domain: domain,
+      favicon: googleFavicon,
+      favicon_https: `https://${targetUrl.hostname}/favicon.ico`
+    });
+  } catch (error) {
+    res.status(400).json({ error: 'Invalid URL', details: error.message });
+  }
+});
+
 // Social data generation endpoint
 app.get('/social/generate', (req, res) => {
   const { type, count = 1 } = req.query;

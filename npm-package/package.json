@@ -1,0 +1,20 @@
+{
+  "name": "opengate-api",
+  "version": "1.0.0",
+  "description": "OpenGate API - A free API that lets users do more with less effort",
+  "main": "index.js",
+  "keywords": ["api", "proxy", "cors", "ai", "image-generation", "utilities"],
+  "author": "OpenGate",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/InfGen/OpenGateAPI"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5"
+  }
+}
