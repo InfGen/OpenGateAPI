@@ -1912,6 +1912,54 @@ app.get('/force-error', async (req, res) => {
   });
 });
 
+// YouTube audio download endpoint
+app.get('/yt-audio', async (req, res) => {
+  const { url, format = 'webm' } = req.query;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'Missing url parameter' });
+  }
+  
+  try {
+    const ytdl = require('ytdl-core');
+    
+    // Validate YouTube URL
+    if (!ytdl.validateURL(url)) {
+      return res.status(400).json({ error: 'Invalid YouTube URL' });
+    }
+    
+    // Get video info
+    const info = await ytdl.getInfo(url);
+    const title = info.videoDetails.title.replace(/[^\w\s-]/g, '');
+    
+    // Set headers for streaming
+    const ext = format === 'mp3' ? 'mp3' : 'webm';
+    res.setHeader('Content-Disposition', `attachment; filename="${title}.${ext}"`);
+    res.setHeader('Content-Type', format === 'mp3' ? 'audio/mpeg' : 'audio/webm');
+    
+    // Choose format
+    const filter = format === 'mp3' ? 'audioonly' : (fmt) => fmt.container === 'webm' && fmt.audioCodec;
+    
+    // Stream the audio
+    ytdl(url, {
+      filter: filter,
+      quality: 'highestaudio'
+    }).pipe(res);
+    
+    // Handle errors
+    ytdl(url, { filter: filter, quality: 'highestaudio' }).on('error', (err) => {
+      console.error('YouTube audio error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to download audio' });
+      }
+    });
+    
+  } catch (error) {
+    console.error('YouTube audio error:', error);
+    res.status(500).json({ error: 'Failed to download YouTube audio', details: error.message });
+  }
+});
+
 // Professional landing page
 app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html>
