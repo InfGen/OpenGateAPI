@@ -1585,18 +1585,10 @@ app.get('/ai-image', async (req, res) => {
     const safeMode = safe === 'true' || safe === '1';
     const enhanced = enhance === 'true' || enhance === '1';
     
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&model=${model}&safe=${safeMode}&enhance=${enhanced}&seed=${seed}`;
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&model=${model}&safe=${safeMode}&enhance=${enhanced}&seed=${seed}`;
     
-    res.json({
-      prompt: prompt,
-      image_url: url,
-      width: parseInt(width),
-      height: parseInt(height),
-      model: model,
-      safe_mode: safeMode,
-      enhanced: enhanced,
-      seed: parseInt(seed)
-    });
+    // Redirect to the image
+    res.redirect(imageUrl);
   } catch (error) {
     res.status(500).json({ error: 'Image generation failed', details: error.message });
   }
