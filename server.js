@@ -1894,7 +1894,25 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Professional test interface
+// Force error endpoint for testing
+app.get('/force-error', async (req, res) => {
+  const { code = 500, message = 'This is a forced error', delay = 0 } = req.query;
+  
+  const delayMs = parseInt(delay) || 0;
+  
+  if (delayMs > 0 && delayMs <= 30000) {
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  
+  const statusCode = parseInt(code) || 500;
+  res.status(statusCode).json({
+    error: message,
+    code: statusCode,
+    description: `This is a test error with status code ${statusCode}. Use ?code=400&message=Custom&delay=1000 to customize.`
+  });
+});
+
+// Professional landing page
 app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -1903,222 +1921,203 @@ app.get('/', (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OpenGate API - Free AI & Proxy API</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1254 1254'><circle cx='627' cy='627' r='626' fill='%232570f2'/><text x='627' y='959' text-anchor='middle' font-family='Arial' font-size='142' font-weight='700' fill='white'>OG</text></svg>">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Inter',sans-serif;background:#09090b;color:#fff;min-height:100vh}
-    .container{max-width:1200px;margin:0 auto;padding:40px 24px}
-    .header{text-align:center;margin-bottom:48px}
-    .logo{width:80px;height:80px;background:#2570f2;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;margin-bottom:24px}
-    h1{font-size:36px;font-weight:700;margin-bottom:12px;background:linear-gradient(135deg,#fff 0%,#a1a1aa 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .subtitle{color:#71717a;font-size:18px;max-width:600px;margin:0 auto}
-    .badge{display:inline-block;background:rgba(34,197,94,0.2);color:#22c55e;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:500;margin-bottom:24px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:24px}
-    .card{background:#18181b;border:1px solid #27272a;border-radius:16px;padding:24px}
-    .card-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
-    .card-icon{width:40px;height:40px;background:rgba(37,112,242,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
-    .card-title{font-size:18px;font-weight:600}
-    .card-desc{color:#71717a;font-size:14px;margin-bottom:16px}
-    .input-group{margin-bottom:16px}
-    label{display:block;font-size:13px;font-weight:500;color:#a1a1aa;margin-bottom:6px}
-    input,textarea{width:100%;padding:12px 14px;background:#09090b;border:1px solid #27272a;border-radius:10px;color:#fff;font-size:14px;transition:all 0.2s}
-    input:focus,textarea:focus{outline:none;border-color:#2570f2;box-shadow:0 0 0 3px rgba(37,112,242,0.2)}
-    textarea{resize:vertical;min-height:80px;font-family:'SF Mono',Monaco,monospace}
-    .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:#2570f2;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s}
-    .btn:hover{background:#1d4ed8}
-    .result{margin-top:16px;padding:16px;background:#09090b;border-radius:10px;font-family:'SF Mono',Monaco,monospace;font-size:13px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;display:none}
-    .result.show{display:block}
-    .result.error{border:1px solid #ef4444;color:#fca5a5}
-    .result.success{border:1px solid #22c55e;color:#86efac}
-    .quick-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-    .quick-link{padding:8px 12px;background:#27272a;border-radius:6px;font-size:12px;color:#a1a1aa;text-decoration:none;transition:all 0.2s}
-    .quick-link:hover{background:#3f3f46;color:#fff}
-    .footer{text-align:center;margin-top:64px;padding-top:32px;border-top:1px solid #27272a;color:#52525b;font-size:14px}
-    .footer a{color:#2570f2;text-decoration:none}
-    .footer a:hover{text-decoration:underline}
-    @media(max-width:640px){.grid{grid-template-columns:1fr}.container{padding:24px 16px}}
+    body{font-family:'Inter',sans-serif;background:#030712;color:#fff;min-height:100vh;overflow-x:hidden}
+    .noise{position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");opacity:0.03;pointer-events:none;z-index:0}
+    .gradient-orb{position:fixed;width:600px;height:600px;border-radius:50%;filter:blur(120px);opacity:0.15;pointer-events:none;z-index:0}
+    .orb-1{background:#2570f2;top:-200px;right:-100px;animation:float 20s ease-in-out infinite}
+    .orb-2{background:#22c55e;bottom:-200px;left:-100px;animation:float 25s ease-in-out infinite reverse}
+    @keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,30px)}}
+    .container{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 24px}
+    nav{display:flex;align-items:center;justify-content:space-between;padding:24px 0}
+    .nav-logo{display:flex;align-items:center;gap:12px;font-weight:700;font-size:20px}
+    .nav-logo-icon{width:40px;height:40px;background:#2570f2;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800}
+    .nav-links{display:flex;gap:32px}
+    .nav-links a{color:#9ca3af;text-decoration:none;font-size:14px;font-weight:500;transition:color 0.2s}
+    .nav-links a:hover{color:#fff}
+    .hero{text-align:center;padding:120px 0 80px}
+    .badge{display:inline-flex;align-items:center;gap:8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#22c55e;padding:8px 16px;border-radius:100px;font-size:13px;font-weight:600;margin-bottom:24px}
+    .badge-dot{width:8px;height:8px;background:#22c55e;border-radius:50%;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+    h1{font-size:64px;font-weight:800;line-height:1.1;margin-bottom:24px;letter-spacing:-2px}
+    .gradient-text{background:linear-gradient(135deg,#fff 0%,#60a5fa 50%,#a78bfa 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .subtitle{font-size:20px;color:#9ca3af;max-width:600px;margin:0 auto 40px;line-height:1.6}
+    .cta-group{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:16px 32px;border-radius:12px;font-weight:600;font-size:16px;text-decoration:none;transition:all 0.2s}
+    .btn-primary{background:#2570f2;color:#fff}
+    .btn-primary:hover{background:#1d4ed8;transform:translateY(-2px)}
+    .btn-secondary{background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2)}
+    .btn-secondary:hover{background:rgba(255,255,255,0.15)}
+    .stats{display:flex;justify-content:center;gap:64px;margin-top:80px;padding-top:40px;border-top:1px solid rgba(255,255,255,0.1)}
+    .stat{text-align:center}
+    .stat-value{font-size:36px;font-weight:800;color:#fff}
+    .stat-label{font-size:14px;color:#6b7280;margin-top:4px}
+    .section{padding:80px 0}
+    .section-title{text-align:center;margin-bottom:48px}
+    .section-title h2{font-size:40px;font-weight:700;margin-bottom:12px}
+    .section-title p{color:#9ca3af;font-size:18px}
+    .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+    .feature{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:32px;transition:all 0.3s}
+    .feature:hover{background:rgba(255,255,255,0.06);transform:translateY(-4px)}
+    .feature-icon{width:48px;height:48px;background:linear-gradient(135deg,#2570f2,#1d4ed8);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:20px}
+    .feature h3{font-size:20px;font-weight:600;margin-bottom:8px}
+    .feature p{color:#9ca3af;font-size:14px;line-height:1.6}
+    .endpoints{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:48px}
+    .endpoint{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+    .endpoint:last-child{border-bottom:none}
+    .endpoint-info{display:flex;align-items:center;gap:16px}
+    .method{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;text-transform:uppercase}
+    .method-get{background:rgba(34,197,94,0.2);color:#22c55e}
+    .endpoint-path{font-family:'SF Mono',Monaco,monospace;font-size:14px;color:#e5e7eb}
+    .endpoint-desc{color:#6b7280;font-size:14px}
+    .try-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#2570f2;color:#fff;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none;transition:all 0.2s}
+    .try-btn:hover{background:#1d4ed8}
+    .footer{text-align:center;padding:48px 0;border-top:1px solid rgba(255,255,255,0.08);margin-top:80px}
+    .footer-links{display:flex;justify-content:center;gap:24px;margin-bottom:16px}
+    .footer-links a{color:#6b7280;text-decoration:none;font-size:14px;transition:color 0.2s}
+    .footer-links a:hover{color:#fff}
+    .footer-copy{color:#4b5563;font-size:13px}
+    @media(max-width:768px){h1{font-size:40px}.stats{flex-direction:column;gap:32px}.nav-links{display:none}}
   </style>
 </head>
 <body>
+  <div class="noise"></div>
+  <div class="gradient-orb orb-1"></div>
+  <div class="gradient-orb orb-2"></div>
   <div class="container">
-    <header class="header">
-      <div class="logo">OG</div>
-      <span class="badge">100% Free & No API Key Required</span>
-      <h1>OpenGate API</h1>
-      <p class="subtitle">A powerful free API for proxying requests, AI text & image generation, and useful utilities.</p>
-    </header>
-    <div class="grid">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon">🌐</div>
-          <div>
-            <div class="card-title">Fetch Proxy</div>
-            <div class="card-desc">Bypass CORS and fetch any URL</div>
-          </div>
-        </div>
-        <div class="input-group">
-          <label>URL</label>
-          <input type="text" id="fetchUrl" placeholder="https://api.github.com/users">
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-          <input type="checkbox" id="fetchRewrite"> <label style="margin:0;font-size:13px;">Rewrite HTML</label>
-        </div>
-        <button class="btn" onclick="doFetch()">Send Request</button>
-        <div id="fetchResult" class="result"></div>
+    <nav>
+      <div class="nav-logo">
+        <div class="nav-logo-icon">OG</div>
+        <span>OpenGate</span>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon">🤖</div>
-          <div>
-            <div class="card-title">AI Text</div>
-            <div class="card-desc">Generate text with free AI</div>
-          </div>
-        </div>
-        <div class="input-group">
-          <label>Prompt</label>
-          <input type="text" id="aiPrompt" placeholder="Write a haiku about coding">
-        </div>
-        <button class="btn" onclick="doAiText()">Generate</button>
-        <div id="aiResult" class="result"></div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#endpoints">Endpoints</a>
+        <a href="https://github.com/InfGen/OpenGateAPI" target="_blank">GitHub</a>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon">🎨</div>
-          <div>
-            <div class="card-title">AI Image</div>
-            <div class="card-desc">Generate images with AI</div>
-          </div>
-        </div>
-        <div class="input-group">
-          <label>Prompt</label>
-          <input type="text" id="imgPrompt" placeholder="A serene mountain landscape">
-        </div>
-        <button class="btn" onclick="doAiImage()">Generate Image</button>
-        <div id="imgResult" class="result"></div>
+    </nav>
+    <section class="hero">
+      <div class="badge"><span class="badge-dot"></span>100% Free & No API Key Required</div>
+      <h1>The API That<br><span class="gradient-text">Does More</span></h1>
+      <p class="subtitle">A powerful free API for proxying requests, generating AI images & text, and useful utilities. No signup, no keys, just power.</p>
+      <div class="cta-group">
+        <a href="#endpoints" class="btn btn-primary">Try It Now →</a>
+        <a href="https://github.com/InfGen/OpenGateAPI" target="_blank" class="btn btn-secondary">View on GitHub</a>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon">✨</div>
-          <div>
-            <div class="card-title">AI Rewrite</div>
-            <div class="card-desc">Rewrite text with different tones</div>
-          </div>
-        </div>
-        <div class="input-group">
-          <label>Text to Rewrite</label>
-          <textarea id="rewriteText" placeholder="Enter your text..."></textarea>
-        </div>
-        <div class="input-group">
-          <label>Tone</label>
-          <input type="text" id="rewriteTone" value="casual">
-        </div>
-        <button class="btn" onclick="doRewrite()">Rewrite</button>
-        <div id="rewriteResult" class="result"></div>
+      <div class="stats">
+        <div class="stat"><div class="stat-value">25+</div><div class="stat-label">Endpoints</div></div>
+        <div class="stat"><div class="stat-value">100%</div><div class="stat-label">Free Forever</div></div>
+        <div class="stat"><div class="stat-value">0</div><div class="stat-label">API Keys Needed</div></div>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon">📝</div>
-          <div>
-            <div class="card-title">Summarize</div>
-            <div class="card-desc">Summarize with AI</div>
-          </div>
-        </div>
-        <div class="input-group">
-          <label>URL or Text</label>
-          <textarea id="summarizeInput" placeholder="https://example.com or enter text..."></textarea>
-        </div>
-        <button class="btn" onclick="doSummarize()">Summarize</button>
-        <div id="summarizeResult" class="result"></div>
+    </section>
+    <section class="section" id="features">
+      <div class="section-title">
+        <h2>Everything You Need</h2>
+        <p>Powerful endpoints for modern development</p>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon">🔗</div>
-          <div>
-            <div class="card-title">Utilities</div>
-            <div class="card-desc">Random data & text tools</div>
-          </div>
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">🌐</div>
+          <h3>CORS Proxy</h3>
+          <p>Fetch any URL with CORS headers. Rewrite HTML to proxy all resources seamlessly.</p>
         </div>
-        <div class="quick-links">
-          <a href="/social/generate?type=name" class="quick-link" target="_blank">Name</a>
-          <a href="/social/generate?type=email" class="quick-link" target="_blank">Email</a>
-          <a href="/social/generate?type=phone" class="quick-link" target="_blank">Phone</a>
-          <a href="/uuid" class="quick-link" target="_blank">UUID</a>
-          <a href="/base64?text=hello" class="quick-link" target="_blank">Base64</a>
-          <a href="/hash?text=hello" class="quick-link" target="_blank">Hash</a>
-          <a href="/slug?text=Hello World" class="quick-link" target="_blank">Slug</a>
-          <a href="/joke" class="quick-link" target="_blank">Joke</a>
-          <a href="/word?text=hello" class="quick-link" target="_blank">Dictionary</a>
-          <a href="/favicon?url=https://google.com" class="quick-link" target="_blank">Favicon</a>
+        <div class="feature">
+          <div class="feature-icon">🤖</div>
+          <h3>AI Text Generation</h3>
+          <p>Generate text with free AI models. No API key required, powered by Pollinations.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🎨</div>
+          <h3>AI Image Generation</h3>
+          <p>Create stunning images with multiple AI models. Flux, GPTImage, and more.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">✨</div>
+          <h3>AI Rewrite & Summarize</h3>
+          <p>Rewrite text with different tones or summarize URLs and articles instantly.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🔗</div>
+          <h3>URL Utilities</h3>
+          <p>Slug generation, favicon lookup, and more tools for working with URLs.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📊</div>
+          <h3>Random Data</h3>
+          <p>Generate fake names, emails, phone numbers, UUIDs, and base64 encoding.</p>
         </div>
       </div>
-    </div>
+    </section>
+    <section class="section" id="endpoints">
+      <div class="section-title">
+        <h2>Quick Examples</h2>
+        <p>Try these endpoints right now</p>
+      </div>
+      <div class="endpoints">
+        <div class="endpoint">
+          <div class="endpoint-info">
+            <span class="method method-get">GET</span>
+            <div>
+              <div class="endpoint-path">/fetch?url=https://api.github.com</div>
+              <div class="endpoint-desc">Proxy any URL with CORS support</div>
+            </div>
+          </div>
+          <a href="/fetch?url=https://httpbin.org/get" target="_blank" class="try-btn">Try →</a>
+        </div>
+        <div class="endpoint">
+          <div class="endpoint-info">
+            <span class="method method-get">GET</span>
+            <div>
+              <div class="endpoint-path">/ai-text?prompt=hello</div>
+              <div class="endpoint-desc">Generate AI text response</div>
+            </div>
+          </div>
+          <a href="/ai-text?prompt=hello" target="_blank" class="try-btn">Try →</a>
+        </div>
+        <div class="endpoint">
+          <div class="endpoint-info">
+            <span class="method method-get">GET</span>
+            <div>
+              <div class="endpoint-path">/ai-image?prompt=a%20cat</div>
+              <div class="endpoint-desc">Generate AI image</div>
+            </div>
+          </div>
+          <a href="/ai-image?prompt=a%20cat" target="_blank" class="try-btn">Try →</a>
+        </div>
+        <div class="endpoint">
+          <div class="endpoint-info">
+            <span class="method method-get">GET</span>
+            <div>
+              <div class="endpoint-path">/social/generate?type=name</div>
+              <div class="endpoint-desc">Generate random name</div>
+            </div>
+          </div>
+          <a href="/social/generate?type=name" target="_blank" class="try-btn">Try →</a>
+        </div>
+        <div class="endpoint">
+          <div class="endpoint-info">
+            <span class="method method-get">GET</span>
+            <div>
+              <div class="endpoint-path">/uuid</div>
+              <div class="endpoint-desc">Generate UUID</div>
+            </div>
+          </div>
+          <a href="/uuid" target="_blank" class="try-btn">Try →</a>
+        </div>
+      </div>
+    </section>
     <footer class="footer">
-      <p>OpenGate API • 100% Free, No API Key</p>
-      <p style="margin-top:8px;">
-        <a href="/health">Health</a> • 
-        <a href="/models">AI Models</a> • 
-        <a href="/ai-image-info">Image Models</a>
-      </p>
+      <div class="footer-links">
+        <a href="/health">Health</a>
+        <a href="/models">AI Models</a>
+        <a href="/ai-image-info">Image Info</a>
+        <a href="/ai-rewrite-tones">Rewrite Tones</a>
+      </div>
+      <p class="footer-copy">OpenGate API • Built with ❤️ • Free Forever</p>
     </footer>
   </div>
-  <script>
-    const BASE = window.location.origin;
-    function show(id, html, err) {
-      const el = document.getElementById(id);
-      el.innerHTML = html;
-      el.className = 'result show ' + (err ? 'error' : 'success');
-    }
-    async function doFetch() {
-      const url = document.getElementById('fetchUrl').value;
-      if (!url) return show('fetchResult', 'Enter a URL', true);
-      show('fetchResult', 'Loading...');
-      try {
-        const u = BASE + '/fetch?url=' + encodeURIComponent(url) + (document.getElementById('fetchRewrite').checked ? '&rewrite=true' : '');
-        const r = await fetch(u);
-        const t = await r.text();
-        show('fetchResult', 'Status: ' + r.status + '\n\n' + t.substring(0, 1500));
-      } catch (e) { show('fetchResult', 'Error: ' + e.message, true); }
-    }
-    async function doAiText() {
-      const p = document.getElementById('aiPrompt').value;
-      if (!p) return show('aiResult', 'Enter a prompt', true);
-      show('aiResult', 'Generating...');
-      try {
-        const r = await fetch(BASE + '/ai-text?prompt=' + encodeURIComponent(p));
-        const j = await r.json();
-        show('aiResult', j.response || JSON.stringify(j));
-      } catch (e) { show('aiResult', 'Error: ' + e.message, true); }
-    }
-    function doAiImage() {
-      const p = document.getElementById('imgPrompt').value;
-      if (!p) return show('imgResult', 'Enter a prompt', true);
-      window.open(BASE + '/ai-image?prompt=' + encodeURIComponent(p), '_blank');
-      show('imgResult', 'Opened in new tab');
-    }
-    async function doRewrite() {
-      const t = document.getElementById('rewriteText').value;
-      const tone = document.getElementById('rewriteTone').value || 'casual';
-      if (!t) return show('rewriteResult', 'Enter text', true);
-      show('rewriteResult', 'Rewriting...');
-      try {
-        const r = await fetch(BASE + '/ai-rewrite?text=' + encodeURIComponent(t) + '&tone=' + encodeURIComponent(tone));
-        const j = await r.json();
-        show('rewriteResult', j.rewritten || JSON.stringify(j));
-      } catch (e) { show('rewriteResult', 'Error: ' + e.message, true); }
-    }
-    async function doSummarize() {
-      const input = document.getElementById('summarizeInput').value;
-      if (!input) return show('summarizeResult', 'Enter URL or text', true);
-      const isUrl = input.startsWith('http');
-      const params = isUrl ? 'url=' + encodeURIComponent(input) : 'text=' + encodeURIComponent(input);
-      show('summarizeResult', 'Summarizing...');
-      try {
-        const r = await fetch(BASE + '/ai-summarize?' + params);
-        const j = await r.json();
-        show('summarizeResult', j.summary || JSON.stringify(j));
-      } catch (e) { show('summarizeResult', 'Error: ' + e.message, true); }
-    }
-  </script>
 </body>
 </html>`);
 });
