@@ -1921,7 +1921,7 @@ app.get('/yt-audio', async (req, res) => {
   }
   
   try {
-    const ytdl = require('ytdl-core');
+    const ytdl = require('@distube/ytdl-core');
     
     // Validate YouTube URL
     if (!ytdl.validateURL(url)) {
@@ -1937,20 +1937,18 @@ app.get('/yt-audio', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${title}.${ext}"`);
     res.setHeader('Content-Type', format === 'mp3' ? 'audio/mpeg' : 'audio/webm');
     
-    // Choose format
-    const filter = format === 'mp3' ? 'audioonly' : (fmt) => fmt.container === 'webm' && fmt.audioCodec;
-    
-    // Stream the audio
-    ytdl(url, {
-      filter: filter,
+    // Stream the audio - use highestaudio quality
+    const stream = ytdl(url, {
+      filter: (fmt) => fmt.audioCodec && (format === 'mp3' ? fmt.container === 'mp3' : fmt.container === 'webm'),
       quality: 'highestaudio'
-    }).pipe(res);
+    });
     
-    // Handle errors
-    ytdl(url, { filter: filter, quality: 'highestaudio' }).on('error', (err) => {
-      console.error('YouTube audio error:', err);
+    stream.pipe(res);
+    
+    stream.on('error', (err) => {
+      console.error('YouTube audio stream error:', err);
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to download audio' });
+        res.status(500).json({ error: 'Failed to stream audio' });
       }
     });
     
