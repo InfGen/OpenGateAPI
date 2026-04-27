@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="opengate-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" width="1254" height="1254">
+  <circle cx="627" cy="627" r="626" fill="#2570f2"/>
+  <g fill="#fff">
+    <path d="M344.7 797.8V513.5c0-144.7 121.8-262.3 276.9-262.3 142.5 0 260.2 103.4 273.8 240.5H790.2c-13.2-78.9-83.2-137.8-168.6-137.8-101.2 0-181.8 77.8-181.8 175.6v268.3H344.7Z"/>
+    <path d="M517.5 457.1 654.6 508v238.6l-137.1 51.2V457.1Z"/>
+    <circle cx="626.2" cy="625.1" r="12.1" fill="#2570f2"/>
+    <path d="M720.2 563.3h175.1v234.5h-96.2V647.2h-78.9v-83.9Z"/>
+  </g>
+  <text x="627" y="959" text-anchor="middle" font-family="Avenir Next, Montserrat, Segoe UI, Arial, sans-serif" font-size="142" font-weight="700" letter-spacing="-6" fill="#fff">OpenGate</text>
+  <line x1="410" y1="1024" x2="500" y2="1024" stroke="#fff" stroke-width="6" stroke-linecap="square"/>
+  <text x="627" y="1050" text-anchor="middle" font-family="Avenir Next, Montserrat, Segoe UI, Arial, sans-serif" font-size="68" font-weight="600" letter-spacing="34" fill="#fff">API</text>
+  <line x1="754" y1="1024" x2="844" y2="1024" stroke="#fff" stroke-width="6" stroke-linecap="square"/>
+</svg>

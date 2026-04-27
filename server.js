@@ -1573,9 +1573,9 @@ app.get('/models', (req, res) => {
   });
 });
 
-// GET /ai-image - Generate AI images using Pollinations
+// GET /ai-image - Generate AI images using Pollinations with watermark
 app.get('/ai-image', async (req, res) => {
-  const { prompt, width = 1024, height = 1024, model = 'flux', safe = 'true', enhance = 'false', seed = '-1' } = req.query;
+  const { prompt, width = 1024, height = 1024, model = 'flux', safe = 'true', enhance = 'false', seed = '-1', nowatermark } = req.query;
   
   if (!prompt) {
     return res.status(400).json({ error: 'Missing prompt parameter' });
@@ -1584,12 +1584,63 @@ app.get('/ai-image', async (req, res) => {
   try {
     const safeMode = safe === 'true' || safe === '1';
     const enhanced = enhance === 'true' || enhance === '1';
+    const skipWatermark = nowatermark === 'true';
     
     const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&model=${model}&safe=${safeMode}&enhance=${enhanced}&seed=${seed}`;
     
-    // Redirect to the image
-    res.redirect(imageUrl);
+    // Fetch the generated image
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      return res.status(500).json({ error: 'Failed to generate image' });
+    }
+    
+    const imageBuffer = await imageResponse.buffer();
+    
+    // Add watermark unless disabled
+    if (!skipWatermark) {
+      const sharp = require('sharp');
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Read watermark SVG
+      const watermarkSvg = fs.readFileSync(path.join(__dirname, 'opengate-watermark.svg'), 'utf-8');
+      
+      // Get image dimensions
+      const metadata = await sharp(imageBuffer).metadata();
+      const imgWidth = metadata.width;
+      const imgHeight = metadata.height;
+      
+      // Scale watermark to 15% of image width
+      const watermarkWidth = Math.round(imgWidth * 0.15);
+      const watermarkHeight = Math.round(watermarkWidth * (1254 / 1254));
+      const padding = Math.round(imgWidth * 0.02);
+      
+      // Convert SVG to PNG with transparency
+      const watermarkBuffer = await sharp(Buffer.from(watermarkSvg))
+        .resize(watermarkWidth, watermarkHeight, { fit: 'contain' })
+        .png()
+        .toBuffer();
+      
+      // Composite watermark onto image (bottom-right corner)
+      const finalBuffer = await sharp(imageBuffer)
+        .composite([{
+          input: watermarkBuffer,
+          gravity: 'southeast'
+        }])
+        .png()
+        .toBuffer();
+      
+      res.set('Content-Type', 'image/png');
+      res.set('Cache-Control', 'public, max-age=86400');
+      return res.send(finalBuffer);
+    }
+    
+    // Return original image if watermark disabled
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(imageBuffer);
   } catch (error) {
+    console.error('Image error:', error);
     res.status(500).json({ error: 'Image generation failed', details: error.message });
   }
 });
