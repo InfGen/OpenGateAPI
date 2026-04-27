@@ -1594,7 +1594,9 @@ app.get('/ai-image', async (req, res) => {
       return res.status(500).json({ error: 'Failed to generate image' });
     }
     
-    const imageBuffer = await imageResponse.buffer();
+    // Get buffer from response
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const imageBuffer = Buffer.from(arrayBuffer);
     
     // Add watermark unless disabled
     if (!skipWatermark) {
@@ -1608,12 +1610,10 @@ app.get('/ai-image', async (req, res) => {
       // Get image dimensions
       const metadata = await sharp(imageBuffer).metadata();
       const imgWidth = metadata.width;
-      const imgHeight = metadata.height;
       
-      // Scale watermark to 15% of image width
-      const watermarkWidth = Math.round(imgWidth * 0.15);
-      const watermarkHeight = Math.round(watermarkWidth * (1254 / 1254));
-      const padding = Math.round(imgWidth * 0.02);
+      // Scale watermark to 12% of image width
+      const watermarkWidth = Math.round(imgWidth * 0.12);
+      const watermarkHeight = Math.round(watermarkWidth * 1.0);
       
       // Convert SVG to PNG with transparency
       const watermarkBuffer = await sharp(Buffer.from(watermarkSvg))
@@ -1621,7 +1621,7 @@ app.get('/ai-image', async (req, res) => {
         .png()
         .toBuffer();
       
-      // Composite watermark onto image (bottom-right corner)
+      // Composite watermark onto image (bottom-right with padding)
       const finalBuffer = await sharp(imageBuffer)
         .composite([{
           input: watermarkBuffer,
