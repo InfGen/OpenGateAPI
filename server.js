@@ -1,6 +1,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { URL } = require('url');
+const puppeteer = require('puppeteer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1910,6 +1911,45 @@ app.get('/force-error', async (req, res) => {
     code: statusCode,
     description: `This is a test error with status code ${statusCode}. Use ?code=400&message=Custom&delay=1000 to customize.`
   });
+});
+
+// Screenshot endpoint using Puppeteer
+app.get('/screenshot', async (req, res) => {
+  const { url, width = 1280, height = 720, fullpage } = req.query;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'Missing url parameter' });
+  }
+  
+  const validation = validateUrl(url);
+  if (validation.valid === false) {
+    return res.status(403).json({ error: validation.error });
+  }
+  
+  try {
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote', '--disable-gpu']
+    });
+    
+    const page = await browser.newPage();
+    await page.setViewport({ width: parseInt(width), height: parseInt(height) });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    
+    const screenshot = await page.screenshot({
+      type: 'png',
+      fullPage: fullpage === 'true'
+    });
+    
+    await browser.close();
+    
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(screenshot);
+  } catch (error) {
+    console.error('Screenshot error:', error);
+    res.status(500).json({ error: 'Screenshot failed', details: error.message });
+  }
 });
 
 // Cool media endpoints
