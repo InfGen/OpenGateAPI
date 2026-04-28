@@ -1,7 +1,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
-const puppeteer = require('puppeteer');
 const { URL } = require('url');
+const puppeteer = require('puppeteer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1051,73 +1051,6 @@ app.post('/fetch', async (req, res) => {
   await performFetch(req, res, validation.href, { method, headers, body });
 });
 
-// GET /screenshot endpoint
-app.get('/screenshot', async (req, res) => {
-  const { url, width = 1920, height = 1080, fullPage = 'false' } = req.query;
-
-  if (!url) {
-    return res.status(400).json({ error: 'Missing url parameter' });
-  }
-
-  // Validate URL using existing security logic
-  const validation = validateUrl(url);
-  if (validation.valid === false) {
-    return res.status(403).json({
-      error: validation.error,
-      details: validation.blockedDomain ? 'This domain is blocked by the proxy' : 'URL validation failed'
-    });
-  }
-
-  let browser;
-  try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu'
-      ]
-    });
-
-    const page = await browser.newPage();
-    
-    // Set viewport and User-Agent
-    await page.setViewport({
-      width: Math.min(parseInt(width) || 1920, 3840),
-      height: Math.min(parseInt(height) || 1080, 2160)
-    });
-    await page.setUserAgent(BROWSER_USER_AGENT);
-
-    // Navigate to URL
-    await page.goto(validation.href, {
-      waitUntil: 'networkidle2',
-      timeout: 30000
-    });
-
-    // Capture screenshot
-    const buffer = await page.screenshot({
-      fullPage: fullPage === 'true',
-      type: 'png'
-    });
-
-    await browser.close();
-    browser = null;
-
-    res.set('Content-Type', 'image/png');
-    res.set('Cache-Control', 'public, max-age=3600');
-    return res.send(buffer);
-
-  } catch (error) {
-    console.error('Screenshot error:', error);
-    if (browser) await browser.close();
-    return res.status(500).json({
-      error: 'Failed to capture screenshot',
-      details: error.message
-    });
-  }
-});
-
 // ============================================
 // Utility Endpoints
 // ============================================
@@ -1980,6 +1913,45 @@ app.get('/force-error', async (req, res) => {
   });
 });
 
+// Screenshot endpoint using Puppeteer
+app.get('/screenshot', async (req, res) => {
+  const { url, width = 1280, height = 720, fullpage } = req.query;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'Missing url parameter' });
+  }
+  
+  const validation = validateUrl(url);
+  if (validation.valid === false) {
+    return res.status(403).json({ error: validation.error });
+  }
+  
+  try {
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote', '--disable-gpu']
+    });
+    
+    const page = await browser.newPage();
+    await page.setViewport({ width: parseInt(width), height: parseInt(height) });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    
+    const screenshot = await page.screenshot({
+      type: 'png',
+      fullPage: fullpage === 'true'
+    });
+    
+    await browser.close();
+    
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(screenshot);
+  } catch (error) {
+    console.error('Screenshot error:', error);
+    res.status(500).json({ error: 'Screenshot failed', details: error.message });
+  }
+});
+
 // Cool media endpoints
 
 // GET /qr?text= - Generate QR code
@@ -2272,16 +2244,6 @@ app.get('/', (req, res) => {
             </div>
           </div>
           <a href="/fetch?url=https://httpbin.org/get" target="_blank" class="try-btn">Try →</a>
-        </div>
-        <div class="endpoint">
-          <div class="endpoint-info">
-            <span class="method method-get">GET</span>
-            <div>
-              <div class="endpoint-path">/screenshot?url=https://google.com</div>
-              <div class="endpoint-desc">Capture a screenshot of any website</div>
-            </div>
-          </div>
-          <a href="/screenshot?url=https://google.com" target="_blank" class="try-btn">Try →</a>
         </div>
         <div class="endpoint">
           <div class="endpoint-info">
