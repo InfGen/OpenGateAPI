@@ -1912,37 +1912,47 @@ app.get('/force-error', async (req, res) => {
   });
 });
 
-// YouTube audio download endpoint
+// YouTube audio download endpoint - uses free API
 app.get('/yt-audio', async (req, res) => {
-  const { url, format = 'webm' } = req.query;
+  const { url } = req.query;
   
   if (!url) {
     return res.status(400).json({ error: 'Missing url parameter' });
   }
   
   try {
-    const playdl = require('play-dl');
+    // Extract video ID
+    const videoIdMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (!videoIdMatch) {
+      return res.status(400).json({ error: 'Invalid YouTube URL' });
+    }
+    const videoId = videoIdMatch[1];
     
-    // Get stream info
-    const streamInfo = await playdl.stream(url, {
-      filter: 'audioonly',
-      quality: 'highest'
-    });
+    // Use a free YouTube audio API service
+    const audioUrl = `https://api.cobalt.tools/api/json/v1/youtube-audio/${videoId}`;
     
-    // Set headers
-    res.setHeader('Content-Type', 'audio/webm');
-    res.setHeader('Accept-Ranges', 'none');
-    res.setHeader('Content-Length', streamInfo.size);
-    
-    // Pipe the stream
-    streamInfo.stream.pipe(res);
-    
-    streamInfo.stream.on('error', (err) => {
-      console.error('YouTube audio stream error:', err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to stream audio' });
+    const response = await fetch(audioUrl, {
+      headers: {
+        'Accept': 'application/json'
       }
     });
+    
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    // Redirect to the audio URL
+    if (data.url) {
+      res.redirect(data.url);
+    } else {
+      throw new Error('No audio URL in response');
+    }
     
   } catch (error) {
     console.error('YouTube audio error:', error);
