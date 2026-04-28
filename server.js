@@ -1912,49 +1912,144 @@ app.get('/force-error', async (req, res) => {
   });
 });
 
-// YouTube audio download endpoint - uses free API
-app.get('/yt-audio', async (req, res) => {
-  const { url } = req.query;
-  
-  if (!url) {
-    return res.status(400).json({ error: 'Missing url parameter' });
-  }
-  
+// Cool media endpoints
+
+// GET /qr?text= - Generate QR code
+app.get('/qr', async (req, res) => {
+  const { text, size = 300 } = req.query;
+  if (!text) return res.status(400).json({ error: 'Missing text parameter' });
   try {
-    // Use RapidAPI YouTube downloader or similar free service
-    const apiUrl = `https://youtube-api32.p.rapidapi.com/video/audio?videoURL=${encodeURIComponent(url)}`;
-    
-    const response = await fetch(apiUrl, {
-      headers: {
-        'X-RapidAPI-Key': 'demo',
-        'X-RapidAPI-Host': 'youtube-api32.p.rapidapi.com'
-      }
-    });
-    
-    if (!response.ok) {
-      // Fallback: redirect to direct YouTube embed audio
-      return res.redirect(`https://www.youtube.com/embed/${extractVideoId(url)}?autoplay=1`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.audioUrl) {
-      res.redirect(data.audioUrl);
-    } else {
-      throw new Error('No audio URL returned');
-    }
-    
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}`;
+    res.redirect(qrUrl);
   } catch (error) {
-    console.error('YouTube audio error:', error);
-    res.status(500).json({ error: 'Failed to download YouTube audio', details: error.message });
+    res.status(500).json({ error: 'Failed to generate QR code' });
   }
 });
 
-// Helper function to extract video ID
-function extractVideoId(url) {
-  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  return match ? match[1] : '';
-}
+// GET /qr-json?text= - Generate QR code as JSON with image
+app.get('/qr-json', async (req, res) => {
+  const { text, size = 300 } = req.query;
+  if (!text) return res.status(400).json({ error: 'Missing text parameter' });
+  try {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}`;
+    res.json({ text: text, qr_url: qrUrl, size: parseInt(size) });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate QR code' });
+  }
+});
+
+// GET /meme?top=&bottom=&image= - Generate meme
+app.get('/meme', async (req, res) => {
+  const { top = '', bottom = '', image = 'https://i.imgflip.com/1bij.jpg' } = req.query;
+  try {
+    const memeUrl = `https://api.imgflip.com/caption_image?template_id=${encodeURIComponent(image)}&text0=${encodeURIComponent(top)}&text1=${encodeURIComponent(bottom)}`;
+    const response = await fetch(memeUrl);
+    const data = await response.json();
+    if (data.success) {
+      res.json({ url: data.data.url, page_url: data.data.page_url });
+    } else {
+      res.status(400).json({ error: 'Meme generation failed', details: data.error_message });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate meme' });
+  }
+});
+
+// GET /cat - Random cat image
+app.get('/cat', async (req, res) => {
+  try {
+    const response = await fetch('https://api.thecatapi.com/v1/images/search');
+    const data = await response.json();
+    if (data[0]) {
+      res.json({ url: data[0].url, id: data[0].id });
+    } else {
+      res.json({ url: 'https://cataas.com/cat' });
+    }
+  } catch (error) {
+    res.json({ url: 'https://cataas.com/cat' });
+  }
+});
+
+// GET /dog - Random dog image
+app.get('/dog', async (req, res) => {
+  try {
+    const response = await fetch('https://dog.ceo/api/breeds/image/random');
+    const data = await response.json();
+    res.json({ url: data.message });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch dog image' });
+  }
+});
+
+// GET /quote - Random inspirational quote
+app.get('/quote', async (req, res) => {
+  try {
+    const response = await fetch('https://zenquotes.io/api/random');
+    const data = await response.json();
+    if (data[0]) {
+      res.json({ quote: data[0].q, author: data[0].a });
+    } else {
+      res.json({ quote: 'The only limit to our realization of tomorrow will be our doubts of today.', author: 'Franklin D. Roosevelt' });
+    }
+  } catch (error) {
+    res.json({ quote: 'Stay positive and keep building!', author: 'OpenGate' });
+  }
+});
+
+// GET /advice - Random advice slip
+app.get('/advice', async (req, res) => {
+  try {
+    const response = await fetch('https://api.adviceslip.com/advice');
+    const data = await response.json();
+    res.json({ advice: data.slip.advice, id: data.slip.id });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch advice' });
+  }
+});
+
+// GET /fortune - Random fortune cookie
+app.get('/fortune', async (req, res) => {
+  const fortunes = [
+    'A beautiful journey awaits you.',
+    'Your hard work will pay off soon.',
+    'New opportunities are coming your way.',
+    'Trust your instincts - they are usually right.',
+    'A surprise gift is on its way to you.',
+    'You will meet someone special soon.',
+    'Success is in your near future.',
+    'Take a risk - great rewards await.',
+    'Your creativity will shine today.',
+    'Happiness is a choice, choose it daily.'
+  ];
+  res.json({ fortune: fortunes[Math.floor(Math.random() * fortunes.length)] });
+});
+
+// GET /picsum - Random image from Picsum
+app.get('/picsum', async (req, res) => {
+  const { width = 800, height = 600 } = req.query;
+  res.json({ url: `https://picsum.photos/${width}/${height}`, width: parseInt(width), height: parseInt(height) });
+});
+
+// GET /color?hex= - Get color info
+app.get('/color', async (req, res) => {
+  const { hex } = req.query;
+  if (!hex) return res.status(400).json({ error: 'Missing hex parameter' });
+  
+  const color = hex.replace('#', '');
+  if (!/^[0-9A-Fa-f]{6}$/.test(color)) {
+    return res.status(400).json({ error: 'Invalid hex color' });
+  }
+  
+  const r = parseInt(color.substr(0, 2), 16);
+  const g = parseInt(color.substr(2, 2), 16);
+  const b = parseInt(color.substr(4, 2), 16);
+  
+  res.json({
+    hex: `#${color.toUpperCase()}`,
+    rgb: `rgb(${r}, ${g}, ${b})`,
+    values: { r, g, b }
+  });
+});
 
 // Professional landing page
 app.get('/', (req, res) => {
