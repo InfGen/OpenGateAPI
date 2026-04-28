@@ -909,8 +909,8 @@ async function performFetch(req, res, targetUrl, options = {}) {
     // Get content type
     const contentType = response.headers.get('content-type') || 'application/octet-stream';
 
-    // Check if rewrite mode is enabled (only for HTML)
-    const shouldRewrite = req.query.rewrite === 'true' && contentType.includes('text/html');
+    // Check if rewrite mode is enabled (only for HTML, enabled by default)
+    const shouldRewrite = req.query.rewrite !== 'false' && contentType.includes('text/html');
 
     // Streaming mode for HTML - sends content as it arrives
     if (shouldStream && contentType.includes('text/html')) {
@@ -1921,37 +1921,27 @@ app.get('/yt-audio', async (req, res) => {
   }
   
   try {
-    // Extract video ID
-    const videoIdMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-    if (!videoIdMatch) {
-      return res.status(400).json({ error: 'Invalid YouTube URL' });
-    }
-    const videoId = videoIdMatch[1];
+    // Use RapidAPI YouTube downloader or similar free service
+    const apiUrl = `https://youtube-api32.p.rapidapi.com/video/audio?videoURL=${encodeURIComponent(url)}`;
     
-    // Use a free YouTube audio API service
-    const audioUrl = `https://api.cobalt.tools/api/json/v1/youtube-audio/${videoId}`;
-    
-    const response = await fetch(audioUrl, {
+    const response = await fetch(apiUrl, {
       headers: {
-        'Accept': 'application/json'
+        'X-RapidAPI-Key': 'demo',
+        'X-RapidAPI-Host': 'youtube-api32.p.rapidapi.com'
       }
     });
     
     if (!response.ok) {
-      throw new Error(`API returned ${response.status}`);
+      // Fallback: redirect to direct YouTube embed audio
+      return res.redirect(`https://www.youtube.com/embed/${extractVideoId(url)}?autoplay=1`);
     }
     
     const data = await response.json();
     
-    if (data.error) {
-      throw new Error(data.error);
-    }
-    
-    // Redirect to the audio URL
-    if (data.url) {
-      res.redirect(data.url);
+    if (data.audioUrl) {
+      res.redirect(data.audioUrl);
     } else {
-      throw new Error('No audio URL in response');
+      throw new Error('No audio URL returned');
     }
     
   } catch (error) {
@@ -1959,6 +1949,12 @@ app.get('/yt-audio', async (req, res) => {
     res.status(500).json({ error: 'Failed to download YouTube audio', details: error.message });
   }
 });
+
+// Helper function to extract video ID
+function extractVideoId(url) {
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : '';
+}
 
 // Professional landing page
 app.get('/', (req, res) => {
